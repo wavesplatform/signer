@@ -11,7 +11,9 @@
     "url": "https://github.com/wavesplatform/waves-js/issues"
   },
   "files": [
-    "dist"
+    "dist",
+    "cjs",
+    "es"
   ],
   "license": "MIT",
   "scripts": {
