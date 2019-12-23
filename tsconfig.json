@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "noImplicitAny": true,
+    "target": "ES5",
+    "experimentalDecorators": true,
+    "strict": true,
+    "sourceMap": true,
+    "declaration": true,
+    "moduleResolution": "node",
+    "lib": [
+      "es5",
+      "dom",
+      "es2015.iterable",
+      "es2015.promise"
+    ]
+  },
+  "include": [
+    "src/Waves.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "name": "@waves/waves-js",
+  "version": "0.0.19",
+  "main": "cjs/Waves.js",
+  "types": "cjs/Waves.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wavesplatform/waves-js"
+  },
+  "bugs": {
+    "url": "https://github.com/wavesplatform/waves-js/issues"
+  },
+  "files": [
+    "dist"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "watch": "webpack --watch",
+    "prepare": "npm run build",
+    "prepublish": "npm test",
+    "postversion": "npm publish",
+    "testCommand": "jest",
+    "build": "tsc -p ./tsconfig-cjs.json && tsc -p ./tsconfig-es.json && webpack",
+    "test": "node-state -n -m typescript -o ./test/_state.ts -r"
+  },
+  "jest": {
+    "collectCoverage": true,
+    "coveragePathIgnorePatterns": [
+      "/node_modules/",
+      "/test/",
+      "/src/libs/"
+    ],
+    "moduleFileExtensions": [
+      "ts",
+      "tsx",
+      "js"
+    ],
+    "transform": {
+      "^.+\\.(ts|tsx)$": "ts-jest"
+    },
+    "testMatch": [
+      "**/test/*spec.+(ts)",
+      "**/test/**/*spec.+(ts)"
+    ]
+  },
+  "dependencies": {
+    "@waves/node-api-js": "0.0.1",
+    "@waves/ts-types": "^0.3.1",
+    "typescript-tuple": "^2.2.1"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^8.0.1",
+    "@types/jest": "^24.0.21",
+    "@types/node-fetch": "^2.5.3",
+    "@waves/js-test-env": "^0.7.4",
+    "@waves/node-state": "0.0.5",
+    "@waves/seed-provider": "0.0.2",
+    "@waves/waves-transactions": "^3.24.0",
+    "dotenv": "^8.2.0",
+    "fs-extra": "^8.1.0",
+    "jest": "^24.9.0",
+    "jest-extended": "^0.11.2",
+    "node-fetch": "^2.6.0",
+    "ts-jest": "^24.1.0",
+    "ts-loader": "^6.2.0",
+    "ts-node": "^8.5.2",
+    "typed-ts-events": "^1.1.1",
+    "typedoc": "^0.15.0",
+    "typedoc-plugin-markdown": "^2.2.11",
+    "typescript": "^3.7.2",
+    "webpack": "^4.41.0",
+    "webpack-cli": "^3.3.9"
+  }
+}
