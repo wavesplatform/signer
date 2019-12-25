@@ -1,5 +1,5 @@
 import { TRANSACTION_TYPE_MAP, TRANSACTION_NAME_MAP } from './interface';
-import { IBroadcastOptions, IOptions } from './Waves';
+import { IBroadcastOptions, IOptions } from './Signer';
 
 export const TYPE_MAP: TRANSACTION_TYPE_MAP = {
     3: 'issue',
