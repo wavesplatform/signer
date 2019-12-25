@@ -15,7 +15,7 @@
     ]
   },
   "include": [
-    "src/Waves.ts"
+    "src/Signer.ts"
   ],
   "exclude": [
     "node_modules"

@@ -1,14 +1,14 @@
 {
-  "name": "@waves/waves-js",
-  "version": "0.0.21",
-  "main": "cjs/Waves.js",
-  "types": "cjs/Waves.d.ts",
+  "name": "@waves/signer",
+  "version": "0.0.0",
+  "main": "cjs/Signer.js",
+  "types": "cjs/Signer.d.ts",
   "repository": {
     "type": "git",
-    "url": "https://github.com/wavesplatform/waves-js"
+    "url": "https://github.com/wavesplatform/signer"
   },
   "bugs": {
-    "url": "https://github.com/wavesplatform/waves-js/issues"
+    "url": "https://github.com/wavesplatform/signer/issues"
   },
   "files": [
     "dist",

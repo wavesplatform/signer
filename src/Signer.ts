@@ -54,7 +54,7 @@ import { TTransactionsApi1 } from './api';
 
 export * from './interface';
 
-export class Waves {
+export class Signer {
     public currentProvider: IProvider | undefined;
     private readonly _options: IOptions;
     private _userData: IUserData | undefined;
@@ -414,4 +414,4 @@ export interface IBroadcastOptions {
     confirmations: number;
 }
 
-export default Waves;
+export default Signer;

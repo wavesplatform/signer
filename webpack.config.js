@@ -1,7 +1,7 @@
 const path = require('path');
 
 const main = (name, minimize) => ({
-    entry: './src/Waves.ts',
+    entry: './src/Signer.ts',
     mode: "production",
     module: {
         rules: [
@@ -20,7 +20,7 @@ const main = (name, minimize) => ({
         extensions: ['.tsx', '.ts', '.js'],
     },
     output: {
-        library: 'wavesJs',
+        library: 'signer',
         libraryTarget: "umd",
         globalObject: "this",
         filename: name,
@@ -30,11 +30,11 @@ const main = (name, minimize) => ({
 
 module.exports = [
     {
-        ...main('waves-js.js', false),
+        ...main('signer.js', false),
         devtool: 'inline-source-map',
         mode: "development",
     },
     {
-        ...main('waves-js.min.js', true)
+        ...main('signer.min.js', true)
     }
 ];
