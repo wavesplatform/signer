@@ -15,7 +15,7 @@ beforeEach(() => {
     waves.setProvider(provider);
 });
 
-it('Transfer Waves', async () => {
+it('Transfer Signer', async () => {
     const [tx] = await waves
         .transfer({
             amount: 1,
@@ -76,7 +76,7 @@ it('Transfer smart asset', async () => {
     await wait(tx);
 });
 
-it('Mass transfer Waves', async () => {
+it('Mass transfer Signer', async () => {
     const [tx] = await waves
         .massTransfer({
             transfers: [

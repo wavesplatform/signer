@@ -90,10 +90,10 @@ export class Signer {
      * @param provider
      *
      * ```ts
-     * import Waves from '@waves/waves-js';
+     * import Signer from '@waves/signer';
      * import Provider from '@waves/seed-provider';
      *
-     * const waves = new Waves();
+     * const waves = new Signer();
      * waves.setProvider(new Provider('SEED'));
      * ```
      */
@@ -130,7 +130,7 @@ export class Signer {
             fetchBalanceDetails(this._options.NODE_URL, user.address)
                 .then(data => ({
                     assetId: 'WAVES',
-                    assetName: 'Waves',
+                    assetName: 'Signer',
                     decimals: 8,
                     amount: String(data.available),
                     isMyAsset: false,
