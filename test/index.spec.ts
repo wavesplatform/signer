@@ -1,4 +1,4 @@
-import Waves from '../src/Waves';
+import Signer from '../src/Signer';
 import { TestProvider } from './TestProvider';
 import { libs } from '@waves/waves-transactions';
 import { CHAIN_ID, NODE_URL, STATE } from './_state';
@@ -10,7 +10,7 @@ const publicKey = libs.crypto.publicKey(seed);
 
 
 it('Login', async () => {
-    const waves = new Waves({ NODE_URL: NODE_URL });
+    const waves = new Signer({ NODE_URL: NODE_URL });
     const provider = new TestProvider(seed);
     await waves.setProvider(provider);
 
@@ -20,7 +20,7 @@ it('Login', async () => {
 });
 
 it('Get balances empty', async () => {
-    const waves = new Waves({ NODE_URL: NODE_URL });
+    const waves = new Signer({ NODE_URL: NODE_URL });
     const provider = new TestProvider(seed);
     await waves.setProvider(provider);
 

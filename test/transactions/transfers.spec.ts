@@ -1,4 +1,4 @@
-import Signer from '../../src/Waves';
+import Signer from '../../src/Signer';
 import { TestProvider } from '../TestProvider';
 import { wait } from '../utils';
 import { CHAIN_ID, NODE_URL, STATE, MASTER_ACCOUNT } from '../_state';

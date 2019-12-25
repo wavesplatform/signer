@@ -1,4 +1,4 @@
-import Waves from '../../src/Waves';
+import Signer from '../../src/Signer';
 import { TestProvider } from '../TestProvider';
 import { wait } from '../utils';
 import { DAP_SCRIPT, NODE_URL, SMART_ASSET_SCRIPT, STATE } from '../_state';
@@ -6,7 +6,7 @@ import { DAP_SCRIPT, NODE_URL, SMART_ASSET_SCRIPT, STATE } from '../_state';
 const { ACCOUNTS } = STATE;
 
 
-const waves = new Waves({ NODE_URL: NODE_URL });
+const waves = new Signer({ NODE_URL: NODE_URL });
 const provider = new TestProvider(ACCOUNTS.FOR_SCRIPT.seed);
 waves.setProvider(provider);
 

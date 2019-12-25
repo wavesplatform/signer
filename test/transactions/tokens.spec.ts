@@ -1,4 +1,4 @@
-import Waves from '../../src/Waves';
+import Signer from '../../src/Signer';
 import { TestProvider } from '../TestProvider';
 import { wait } from '../utils';
 import { NODE_URL, STATE } from '../_state';
@@ -7,12 +7,12 @@ import { MASTER_ACCOUNT_SEED } from '@waves/node-state/dist/constants';
 
 const { ACCOUNTS } = STATE;
 
-let waves: Waves = new Waves();
+let waves: Signer = new Signer();
 let provider: TestProvider = new TestProvider(MASTER_ACCOUNT_SEED);
 
 
 beforeEach(() => {
-    waves = new Waves({ NODE_URL: NODE_URL });
+    waves = new Signer({ NODE_URL: NODE_URL });
     provider = new TestProvider(ACCOUNTS.SIMPLE.seed);
     waves.setProvider(provider);
 });
