@@ -265,7 +265,6 @@ export interface ISetAssetScript<LONG = TLong> extends ITXBase<LONG> {
 
 export interface IInvoke<LONG = TLong> extends ITXBase<LONG> {
     dApp: string;
-    fee: LONG;
     payment?: Array<IMoney>;
     call?: ICall;
     chainId?: number;
