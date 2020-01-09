@@ -56,7 +56,6 @@
     "@types/node-fetch": "^2.5.3",
     "@waves/js-test-env": "^0.7.4",
     "@waves/node-state": "0.0.5",
-    "@waves/seed-provider": "0.0.2",
     "@waves/waves-transactions": "^3.24.0",
     "dotenv": "^8.2.0",
     "fs-extra": "^8.1.0",
