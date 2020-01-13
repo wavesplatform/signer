@@ -165,7 +165,7 @@ export interface ITypedData {
     /**
      * Тип поля
      */
-    type: 'string' | 'number' | 'boolean';
+    type: 'string' | 'integer' | 'boolean' | 'binary';
     /**
      * Наименование поля
      */
