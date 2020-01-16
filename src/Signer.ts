@@ -130,7 +130,7 @@ export class Signer {
             fetchBalanceDetails(this._options.NODE_URL, user.address)
                 .then(data => ({
                     assetId: 'WAVES',
-                    assetName: 'Signer',
+                    assetName: 'Waves',
                     decimals: 8,
                     amount: String(data.available),
                     isMyAsset: false,
