@@ -5,3 +5,5 @@ _*
 es
 cjs
 coverage
+.DS_Store
+src/**/*.d.ts
