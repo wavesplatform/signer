@@ -5,7 +5,7 @@
     "experimentalDecorators": true,
     "strict": true,
     "sourceMap": true,
-    "declaration": true,
+    "declaration": false,
     "moduleResolution": "node",
     "lib": [
       "es5",
