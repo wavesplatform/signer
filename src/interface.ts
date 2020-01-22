@@ -5,9 +5,11 @@ import {
     TTransactionFromAPIMap,
     TTransactionWithProofs,
     TTransactionWithProofsMap,
-    TInvokeScriptCallArgument
+    TInvokeScriptCallArgument,
+    IWithProofs,
+    IExchangeTransactionOrder,
+    IExchangeTransactionOrderWithProofs
 } from '@waves/ts-types';
-import { IExchangeTransactionOrder, IWithProofs } from '@waves/ts-types/src/parts';
 import { IBroadcastOptions } from './Signer';
 
 export type TLong = string | number;
@@ -46,21 +48,21 @@ export type TRANSACTION_NAME_MAP = {
     invoke: 16;
 };
 export type TRANSACTION_PARAM_MAP = {
-    'issue': IIssueWithType;
-    'transfer': ITransferWithType;
-    'reissue': IReissueWithType;
-    'burn': IBurnWithType;
-    'exchange': IExchangeWithType;
-    'lease': ILeaseWithType;
-    'cancelLease': ICancelLeaseWithType;
-    'alias': IAliasWithType;
-    'massTransfer': IMassTransferWithType;
-    'data': IDataWithType;
-    'setScript': ISetScriptWithType;
-    'sponsorship': ISponsorshipWithType;
-    'setAssetScript': ISetAssetScriptWithType;
-    'invoke': IInvokeWithType;
-}
+    issue: IIssueWithType;
+    transfer: ITransferWithType;
+    reissue: IReissueWithType;
+    burn: IBurnWithType;
+    exchange: IExchangeWithType;
+    lease: ILeaseWithType;
+    cancelLease: ICancelLeaseWithType;
+    alias: IAliasWithType;
+    massTransfer: IMassTransferWithType;
+    data: IDataWithType;
+    setScript: ISetScriptWithType;
+    sponsorship: ISponsorshipWithType;
+    setAssetScript: ISetAssetScriptWithType;
+    invoke: IInvokeWithType;
+};
 
 export interface IIssueWithType<LONG = TLong> extends IIssue<LONG> {
     type: TRANSACTION_NAME_MAP['issue'];
@@ -90,7 +92,8 @@ export interface IAliasWithType<LONG = TLong> extends IAlias<LONG> {
     type: TRANSACTION_NAME_MAP['alias'];
 }
 
-export interface IMassTransferWithType<LONG = TLong> extends IMassTransfer<LONG> {
+export interface IMassTransferWithType<LONG = TLong>
+    extends IMassTransfer<LONG> {
     type: TRANSACTION_NAME_MAP['massTransfer'];
 }
 
@@ -110,7 +113,8 @@ export interface IExchangeWithType<LONG = TLong> extends IExchange<LONG> {
     type: TRANSACTION_NAME_MAP['exchange'];
 }
 
-export interface ISetAssetScriptWithType<LONG = TLong> extends ISetAssetScript<LONG> {
+export interface ISetAssetScriptWithType<LONG = TLong>
+    extends ISetAssetScript<LONG> {
     type: TRANSACTION_NAME_MAP['setAssetScript'];
 }
 
@@ -118,37 +122,51 @@ export interface IInvokeWithType<LONG = TLong> extends IInvoke<LONG> {
     type: TRANSACTION_NAME_MAP['invoke'];
 }
 
+export interface IOrder<LONG = TLong> {
+    matcherPublicKey: string;
+    price: LONG;
+    amount: LONG;
+    orderType: 'buy' | 'sell';
+    amountAsset: string | null;
+    priceAsset: string | null;
+    senderPublicKey?: string;
+    matcherFee?: number;
+    timestamp?: number;
+    expiration?: number;
+    matcherFeeAssetId?: string | null;
+}
+
 export type TTransactionParamWithType<LONG = TLong> =
-    IIssueWithType |
-    ITransferWithType |
-    IReissueWithType |
-    IBurnWithType |
-    ILeaseWithType |
-    ICancelLeaseWithType |
-    IAliasWithType |
-    IMassTransferWithType |
-    IDataWithType |
-    ISetScriptWithType |
-    ISponsorshipWithType |
-    IExchangeWithType |
-    ISetAssetScriptWithType |
-    IInvokeWithType
+    | IIssueWithType<LONG>
+    | ITransferWithType<LONG>
+    | IReissueWithType<LONG>
+    | IBurnWithType<LONG>
+    | ILeaseWithType<LONG>
+    | ICancelLeaseWithType<LONG>
+    | IAliasWithType<LONG>
+    | IMassTransferWithType<LONG>
+    | IDataWithType<LONG>
+    | ISetScriptWithType<LONG>
+    | ISponsorshipWithType<LONG>
+    | IExchangeWithType<LONG>
+    | ISetAssetScriptWithType<LONG>
+    | IInvokeWithType<LONG>;
 
 export type TTransactionParam<LONG = TLong> =
-    IIssue |
-    ITransfer |
-    IReissue |
-    IBurn |
-    ILease |
-    ICancelLease |
-    IAlias |
-    IMassTransfer |
-    IData |
-    ISetScript |
-    ISponsorship |
-    IExchange |
-    ISetAssetScript |
-    IInvoke
+    | IIssue<LONG>
+    | ITransfer<LONG>
+    | IReissue<LONG>
+    | IBurn<LONG>
+    | ILease<LONG>
+    | ICancelLease<LONG>
+    | IAlias<LONG>
+    | IMassTransfer<LONG>
+    | IData<LONG>
+    | ISetScript<LONG>
+    | ISponsorship<LONG>
+    | IExchange<LONG>
+    | ISetAssetScript<LONG>
+    | IInvoke<LONG>;
 
 export interface IUserData {
     /**
@@ -230,7 +248,7 @@ export interface IAlias<LONG = TLong> extends ITXBase<LONG> {
 
 export interface IMassTransfer<LONG = TLong> extends ITXBase<LONG> {
     assetId?: string;
-    transfers: Array<IMassTransferItem<LONG>>
+    transfers: Array<IMassTransferItem<LONG>>;
     attachment?: string;
 }
 
@@ -277,12 +295,15 @@ export interface IDataEntry {
     value: string | number | boolean | Uint8Array | Array<number>;
 }
 
-
-export interface ITypelessDataEntry {
-    key: string
-    value: string | number | boolean | Uint8Array | number[];
+export interface IOffchainSignResult<T> {
+    signedData: T;
+    signature: string;
 }
 
+export interface ITypelessDataEntry {
+    key: string;
+    value: string | number | boolean | Uint8Array | number[];
+}
 
 export interface IMoney<LONG = TLong> {
     assetId: string;
@@ -343,7 +364,48 @@ export interface IAssetInfo {
     isSmart: boolean;
 }
 
+export interface IOrderApi {
+    sign(): Promise<IExchangeTransactionOrderWithProofs<TLong>>;
+    limit(): Promise<IExchangeTransactionOrderWithProofs<TLong>>;
+    market(): Promise<IExchangeTransactionOrderWithProofs<TLong>>;
+}
+
+export type TProviderState = IProviderState | IProviderStateLogined;
+
+export interface IProviderState {
+    logined: false;
+    activeUser: null;
+}
+
+export interface IProviderStateLogined {
+    logined: true;
+    activeUser: IUserData;
+}
+
+export interface IProviderStateEvents {
+    onLogin: IUserData;
+    onLogout: void;
+}
+
+export type THandler<T> = (data: T) => any;
+
 export interface IProvider {
+    state: TProviderState;
+
+    on<EVENT extends keyof IProviderStateEvents>(
+        event: EVENT,
+        handler: THandler<IProviderStateEvents[EVENT]>
+    ): IProvider;
+
+    once<EVENT extends keyof IProviderStateEvents>(
+        event: EVENT,
+        handler: THandler<IProviderStateEvents[EVENT]>
+    ): IProvider;
+
+    off<EVENT extends keyof IProviderStateEvents>(
+        event: EVENT,
+        handler: THandler<IProviderStateEvents[EVENT]>
+    ): IProvider;
 
     /**
      * Connect the provider to the library settings
@@ -365,19 +427,57 @@ export interface IProvider {
      * Sign message
      * @param data
      */
-    signMessage(data: string | number): Promise<string>;
+    signMessage(
+        data: string | number
+    ): Promise<IOffchainSignResult<string | number>>;
 
     /**
      * Sign typed data
      * @param data
      */
-    signTypedData(data: Array<ITypedData>): Promise<string>;
+    signTypedData(
+        data: Array<ITypedData>
+    ): Promise<IOffchainSignResult<Array<ITypedData>>>;
+
+    /**
+     *
+     * @param data
+     */
+    signBytes(
+        data: Uint8Array | Array<number>
+    ): Promise<IOffchainSignResult<Uint8Array | Array<number>>>;
+
+    /**
+     * Подписываем ордер
+     * @param data
+     */
+    order(data: IOrder): Promise<IExchangeTransactionOrderWithProofs<TLong>>;
+
+    /**
+     *
+     */
+    encryptMessage(
+        sharedKey: string,
+        message: string,
+        prefix?: string
+    ): Promise<string>;
+
+    /**
+     *
+     */
+    decryptMessage(
+        sharedKey: string,
+        message: string,
+        prefix?: string
+    ): Promise<string>;
 
     /**
      * Sign an array of transactions
      * @param list
      */
-    sign(list: Array<TTransactionParamWithType>): Promise<Array<TTransactionWithProofs<TLong> & IWithId>>;
+    sign(
+        list: Array<TTransactionParamWithType>
+    ): Promise<Array<TTransactionWithProofs<TLong> & IWithId>>;
 }
 
 export interface IConnectOptions {
@@ -394,24 +494,20 @@ export interface IConnectOptions {
 export type TActionsApi<T> = {
     sign(): Promise<TParamsToSign<T>>;
     broadcast(options?: IBroadcastOptions): Promise<TParamsToApi<T>>;
-}
+};
 
-export type TParamToSign<T> =
-    T extends TTransactionParamWithType
-        ? TTransactionWithProofsMap<TLong>[T['type']] & IWithId
-        : never;
+export type TParamToSign<T> = T extends TTransactionParamWithType
+    ? TTransactionWithProofsMap<TLong>[T['type']] & IWithId
+    : never;
 
-export type TParamsToSign<T> =
-    T extends Array<TTransactionParamWithType>
-        ? { [P in keyof T]: TParamToSign<T[P]> }
-        : [TParamToSign<T>];
+export type TParamsToSign<T> = T extends Array<TTransactionParamWithType>
+    ? { [P in keyof T]: TParamToSign<T[P]> }
+    : [TParamToSign<T>];
 
-export type TParamToApi<T> =
-    T extends TTransactionParamWithType
-        ? TTransactionFromAPIMap<TLong>[T['type']]
-        : never;
+export type TParamToApi<T> = T extends TTransactionParamWithType
+    ? TTransactionFromAPIMap<TLong>[T['type']]
+    : never;
 
-export type TParamsToApi<T> =
-    T extends Array<TTransactionParamWithType>
-        ? { [P in keyof T]: TParamToApi<T[P]> }
-        : [TParamToApi<T>];
+export type TParamsToApi<T> = T extends Array<TTransactionParamWithType>
+    ? { [P in keyof T]: TParamToApi<T[P]> }
+    : [TParamToApi<T>];

@@ -36,7 +36,9 @@ export const NAME_MAP: TRANSACTION_NAME_MAP = {
 };
 
 export const DEFAULT_OPTIONS: IOptions = {
-    NODE_URL: 'https://nodes.wavesplatform.com'
+    NODE_URL: 'https://nodes.wavesplatform.com',
+    MATCHER_URL: undefined,
+    LOG_LEVEL: 'error'
 };
 
 export const DEFAULT_BROADCAST_OPTIONS: IBroadcastOptions = {
