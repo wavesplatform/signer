@@ -1,8 +1,9 @@
-import { IConnectOptions, IProvider, ITypedData, IUserData, TLong, TTransactionParamWithType } from '../src/interface';
+import { IConnectOptions, IProvider, ITypedData, IUserData, TLong, TTransactionParamWithType, IOrder } from '../src/interface';
 import { EventEmitter } from 'typed-ts-events';
 import { libs, signTx } from '@waves/waves-transactions';
 import { IWithId, TTransactionWithProofs } from '@waves/ts-types';
 import { NETWORK_BYTE } from './_state';
+import { IExchangeTransactionOrderWithProofs } from '@waves/ts-types/src';
 
 
 export class TestProvider extends EventEmitter<TEvents> implements IProvider {
@@ -42,6 +43,10 @@ export class TestProvider extends EventEmitter<TEvents> implements IProvider {
     public sign(list: Array<TTransactionParamWithType>): Promise<Array<TTransactionWithProofs<TLong> & IWithId>> {
         this.trigger('sign', [list]);
         return Promise.resolve(list.map(item => signTx({ chainId: this.options.NETWORK_BYTE, ...item } as any, this.seed))) as any;
+    }
+
+    public order(data: IOrder): Promise<IExchangeTransactionOrderWithProofs<TLong>> {
+        
     }
 
     public signMessage(data: string | number): Promise<string> {

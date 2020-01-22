@@ -42,6 +42,11 @@ import {
     TParamsToApi,
     TParamsToSign,
     TTransactionParamWithType,
+    IOrder,
+    IOrderApi,
+    IOffchainSignResult,
+    THandler,
+    IProviderStateEvents,
 } from './interface';
 import { evolve, toArray } from './utils';
 import { addParamType } from './utils/transactions';
@@ -49,8 +54,16 @@ import { fetchBalanceDetails } from '@waves/node-api-js/cjs/api-node/addresses';
 import { fetchAssetsBalance } from '@waves/node-api-js/cjs/api-node/assets';
 import wait from '@waves/node-api-js/cjs/tools/transactions/wait';
 import broadcast from '@waves/node-api-js/cjs/tools/transactions/broadcast';
+import request from '@waves/node-api-js/cjs/tools/request';
+import stringify from '@waves/node-api-js/cjs/tools/stringify';
 import getNetworkByte from '@waves/node-api-js/cjs/tools/blocks/getNetworkByte';
 import { TTransactionsApi1 } from './api';
+import {
+    makeConsole,
+    IConsole,
+    IGetMessageOptions,
+    IMessage,
+} from '@waves/client-logs';
 
 export * from './interface';
 
@@ -60,6 +73,7 @@ export class Signer {
     private _userData: IUserData | undefined;
     private _networkBytePromise: Promise<number>;
     private __connectPromise: Promise<IProvider> | undefined;
+    private readonly _console: IConsole;
 
     private get _connectPromise(): Promise<IProvider> {
         return this.__connectPromise || Promise.reject('Has no provider!');
@@ -73,9 +87,76 @@ export class Signer {
         this._options = { ...DEFAULT_OPTIONS, ...(options || {}) };
         this._networkBytePromise = getNetworkByte(this._options.NODE_URL).then(
             (byte) => {
+                this._console.info('Success load node network byte', byte);
                 return byte;
+            },
+            (error) => {
+                this._console.error("Can't get network byte from node", error);
+                return Promise.reject(error);
             }
         );
+        switch (this._options.LOG_LEVEL) {
+            case 'error':
+                this._console = makeConsole({
+                    namespace: 'Signer',
+                    keepMessageTypes: ['warn', 'error'],
+                    logMessageTypes: ['error'],
+                });
+                break;
+            case 'production':
+                this._console = makeConsole({
+                    namespace: 'Signer',
+                    keepMessageTypes: ['warn', 'error'],
+                    logMessageTypes: [],
+                });
+                break;
+            case 'verbose':
+                this._console = makeConsole({
+                    namespace: 'Signer',
+                    keepMessageTypes: ['warn', 'error'],
+                    logMessageTypes: ['info', 'log', 'warn', 'error'],
+                });
+                break;
+        }
+
+        this._console.info('Success create Signer with options', this._options);
+    }
+
+    public on<EVENT extends keyof IProviderStateEvents>(
+        event: EVENT,
+        hander: THandler<IProviderStateEvents[EVENT]>
+    ): Signer {
+        this._console.info(`Add handler for "${event}"`);
+        this._connectPromise.then((provider) => {
+            provider.on(event, hander);
+        });
+        return this;
+    }
+
+    public once<EVENT extends keyof IProviderStateEvents>(
+        event: EVENT,
+        hander: THandler<IProviderStateEvents[EVENT]>
+    ): Signer {
+        this._console.info(`Add once handler for "${event}"`);
+        this._connectPromise.then((provider) => {
+            provider.once(event, hander);
+        });
+        return this;
+    }
+
+    public off<EVENT extends keyof IProviderStateEvents>(
+        event: EVENT,
+        hander: THandler<IProviderStateEvents[EVENT]>
+    ): Signer {
+        this._console.info(`Remove handler for "${event}"`);
+        this._connectPromise.then((provider) => {
+            provider.off(event, hander);
+        });
+        return this;
+    }
+
+    public getMessages(options?: IGetMessageOptions): Array<IMessage> {
+        return this._console.getMessages(options);
     }
 
     /**
@@ -98,14 +179,18 @@ export class Signer {
      * ```
      */
     public setProvider(provider: IProvider): Promise<void> {
+        this._console.info('Set new Provider', provider);
         this.currentProvider = provider;
 
-        const result = this._networkBytePromise.then((networkByte) =>
-            provider.connect({
+        const result = this._networkBytePromise.then((networkByte) => {
+            this._console.info(
+                `Call provider "connect" method with node: ${this._options.NODE_URL}, and network byte: ${networkByte}`
+            );
+            return provider.connect({
                 NODE_URL: this._options.NODE_URL,
                 NETWORK_BYTE: networkByte,
-            })
-        );
+            });
+        });
 
         this._connectPromise = result.then(() => provider);
 
@@ -127,8 +212,8 @@ export class Signer {
         const user = this._userData;
 
         return Promise.all([
-            fetchBalanceDetails(this._options.NODE_URL, user.address)
-                .then(data => ({
+            fetchBalanceDetails(this._options.NODE_URL, user.address).then(
+                (data) => ({
                     assetId: 'WAVES',
                     assetName: 'Waves',
                     decimals: 8,
@@ -136,26 +221,29 @@ export class Signer {
                     isMyAsset: false,
                     tokens: Number(data.available) * Math.pow(10, 8),
                     sponsorship: null,
-                    isSmart: false
-                })),
-            fetchAssetsBalance(this._options.NODE_URL, user.address)
-                .then((data) => data.balances.map((item) => ({
-                    assetId: item.assetId,
-                    assetName: item.issueTransaction.name,
-                    decimals: item.issueTransaction.decimals,
-                    amount: String(item.balance),
-                    isMyAsset: item.issueTransaction.sender === user.address,
-                    tokens:
-                        item.balance *
-                        Math.pow(10, item.issueTransaction.decimals),
-                    isSmart: !!item.issueTransaction.script,
-                    sponsorship:
-                        item.sponsorBalance != null &&
-                        item.sponsorBalance > Math.pow(10, 8) &&
-                        (item.minSponsoredAssetFee || 0) < item.balance
-                            ? item.minSponsoredAssetFee
-                            : null,
-                }))
+                    isSmart: false,
+                })
+            ),
+            fetchAssetsBalance(this._options.NODE_URL, user.address).then(
+                (data) =>
+                    data.balances.map((item) => ({
+                        assetId: item.assetId,
+                        assetName: item.issueTransaction.name,
+                        decimals: item.issueTransaction.decimals,
+                        amount: String(item.balance),
+                        isMyAsset:
+                            item.issueTransaction.sender === user.address,
+                        tokens:
+                            item.balance *
+                            Math.pow(10, item.issueTransaction.decimals),
+                        isSmart: !!item.issueTransaction.script,
+                        sponsorship:
+                            item.sponsorBalance != null &&
+                            item.sponsorBalance > Math.pow(10, 8) &&
+                            (item.minSponsoredAssetFee || 0) < item.balance
+                                ? item.minSponsoredAssetFee
+                                : null,
+                    }))
             ),
         ]).then(([waves, assets]) => [waves, ...assets]);
     }
@@ -171,7 +259,15 @@ export class Signer {
         return this._connectPromise
             .then((provider) => provider.login())
             .then((data) => {
-                this._userData = data;
+                if (!this._userData) {
+                    this._console.info('Add user login data', data);
+                    this._userData = data;
+                } else {
+                    if (this._userData.address !== data.address) {
+                        throw new Error('Ivalid provider work! Wrong change provider address!');
+                    }
+                }
+
                 return data;
             });
     }
@@ -183,6 +279,7 @@ export class Signer {
         return this._connectPromise
             .then((provider) => provider.logout())
             .then(() => {
+                this._console.info('Logout');
                 this._userData = undefined;
             });
     }
@@ -191,7 +288,9 @@ export class Signer {
      * Подписываем сообщение пользователя (провайдер может устанавливать префикс)
      * @param message
      */
-    public signMessage(message: string | number): Promise<string> {
+    public signMessage(
+        message: string | number
+    ): Promise<IOffchainSignResult<string | number>> {
         return this._connectPromise.then((provider) =>
             provider.signMessage(message)
         );
@@ -201,9 +300,19 @@ export class Signer {
      * Подписываем типизированные данные
      * @param data
      */
-    public signTypedData(data: Array<ITypedData>): Promise<string> {
+    public signTypedData(
+        data: Array<ITypedData>
+    ): Promise<IOffchainSignResult<Array<ITypedData>>> {
         return this._connectPromise.then((provider) =>
             provider.signTypedData(data)
+        );
+    }
+
+    public signBytes(
+        data: Uint8Array | Array<number>
+    ): Promise<IOffchainSignResult<Uint8Array | Array<number>>> {
+        return this._connectPromise.then((privuder) =>
+            privuder.signBytes(data)
         );
     }
 
@@ -295,6 +404,56 @@ export class Signer {
 
     public invoke(data: IInvoke): TTransactionsApi1<IInvokeWithType> {
         return this._createPipelineAPI([addParamType('invoke', data)]);
+    }
+
+    public order(data: IOrder): IOrderApi {
+        const sign = () =>
+            this._connectPromise.then((provider) => provider.order(data));
+        return {
+            sign,
+            limit: () =>
+                sign().then((order) =>
+                    request({
+                        url: '/matcher/orderbook',
+                        base: this._options.MATCHER_URL,
+                        options: {
+                            method: 'POST',
+                            body: stringify(order),
+                        },
+                    })
+                ),
+            market: () =>
+                sign().then((order) =>
+                    request({
+                        url: '/matcher/orderbook/market',
+                        base: this._options.MATCHER_URL,
+                        options: {
+                            method: 'POST',
+                            body: stringify(order),
+                        },
+                    })
+                ),
+        };
+    }
+
+    public encryptMessage(
+        sharedKey: string,
+        message: string,
+        prefix?: string
+    ): Promise<string> {
+        return this._connectPromise.then((provider) =>
+            provider.decryptMessage(sharedKey, message, prefix)
+        );
+    }
+
+    public decryptMessage(
+        sharedKey: string,
+        message: string,
+        prefix?: string
+    ): Promise<string> {
+        return this._connectPromise.then((provider) =>
+            provider.decryptMessage(sharedKey, message, prefix)
+        );
     }
 
     /**
@@ -401,6 +560,10 @@ export interface IOptions {
      * Урл матчера (временно не поддерживается)
      */
     MATCHER_URL: string;
+    /**
+     *
+     */
+    LOG_LEVEL: 'production' | 'error' | 'verbose';
 }
 
 export interface IBroadcastOptions {
