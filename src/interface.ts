@@ -152,26 +152,26 @@ export type TTransactionParam<LONG = TLong> =
 
 export interface IUserData {
     /**
-     * Адрес пользователя
+     * User address
      */
     address: string;
     /**
-     * Публичный ключ
+     * Public key
      */
     publicKey: string;
 }
 
 export interface ITypedData {
     /**
-     * Тип поля
+     * Field type
      */
     type: 'string' | 'integer' | 'boolean' | 'binary';
     /**
-     * Наименование поля
+     * Field name
      */
     key: string;
     /**
-     * Значение
+     * Value
      */
     value: string | number | boolean;
 }
@@ -301,41 +301,43 @@ export interface ICall {
 
 export interface IBalance<LONG = TLong> extends IAssetInfo {
     /**
-     * Количество денег на балансе
-     * Возвращается в минимальных неделимых частях
-     * Например 1 WAVES = 100000000 в данном АПИ
+     * Amount of money on balance
+     * returned in minimum indivisible parts
+     * for example 1 WAVES = 100000000 in this API
      */
     amount: LONG;
     /**
-     * Количество денег на балансе
-     * Возвращается в токенах (данные из АПИ умноженные на 10 в степени decimals)
+     * Amount of money on balance
+     * returned in minimum indivisible parts
+     * (API data multiplied by 10 to the power of decimals)
      */
     tokens: LONG;
     /**
-     * Если поле есть то в нём содержится курс для оплаты комиссии (к 0.001 WAVES)
+     * If there is a field, then it contains a rate for paying a commission
+     * (to 0.001 WAVES)
      */
     sponsorship?: LONG | null;
 }
 
 export interface IAssetInfo {
     /**
-     * ID ассета
+     * Asset ID
      */
     assetId: string;
     /**
-     * Название ассета
+     * Asset name
      */
     assetName: string;
     /**
-     * Количество знаков после запятой у ассета
+     * Asset decimal places
      */
     decimals: number;
     /**
-     * Выпущен авторизованным пользователем
+     * Authorized by
      */
     isMyAsset: boolean;
     /**
-     * Является ли ассет скриптованным
+     * Is the asset scripted
      */
     isSmart: boolean;
 }
@@ -343,35 +345,35 @@ export interface IAssetInfo {
 export interface IProvider {
 
     /**
-     * Подключаем провайдер к настройкам библиотеки
+     * Connect the provider to the library settings
      * @param options
      */
     connect(options: IConnectOptions): Promise<void>;
 
     /**
-     * Авторизуемся в провайдере
+     * Logs in user using provider
      */
     login(): Promise<IUserData>;
 
     /**
-     * Разрываем сессию
+     * logs out from provider
      */
     logout(): Promise<void>;
 
     /**
-     * Подписываем текстовое сообщение
+     * Sign message
      * @param data
      */
     signMessage(data: string | number): Promise<string>;
 
     /**
-     * Подписываем типизированные данные
+     * Sign typed data
      * @param data
      */
     signTypedData(data: Array<ITypedData>): Promise<string>;
 
     /**
-     * Подписываем массив транзакций
+     * Sign an array of transactions
      * @param list
      */
     sign(list: Array<TTransactionParamWithType>): Promise<Array<TTransactionWithProofs<TLong> & IWithId>>;
@@ -379,11 +381,11 @@ export interface IProvider {
 
 export interface IConnectOptions {
     /**
-     * Урл ноды
+     * Node URL
      */
     NODE_URL: string;
     /**
-     * Байт сети
+     * Network byte
      */
     NETWORK_BYTE: number;
 }
