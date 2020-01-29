@@ -400,7 +400,7 @@ export interface IOptions {
     /**
      * Урл матчера (временно не поддерживается)
      */
-    MATCHER_URL: string;
+    // MATCHER_URL: string;
 }
 
 export interface IBroadcastOptions {
