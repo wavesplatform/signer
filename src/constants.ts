@@ -35,9 +35,7 @@ export const NAME_MAP: TRANSACTION_NAME_MAP = {
     'invoke': 16
 };
 
-export const DEFAULT_OPTIONS: IOptions = {
-    NODE_URL: 'https://nodes.wavesplatform.com',
-    MATCHER_URL: 'https://nodes.wavesplatfomr.com/matcher',
+export const DEFAULT_OPTIONS: Partial<IOptions> = {
     LOG_LEVEL: 'error'
 };
 
