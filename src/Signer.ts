@@ -3,7 +3,7 @@ import {
     TTransactionFromAPIMap,
     TTransactionWithProofs,
 } from '@waves/ts-types';
-import { DEFAULT_OPTIONS, NAME_MAP } from './constants';
+import { NAME_MAP, DEFAULT_OPTIONS } from './constants';
 import {
     IAlias,
     IAliasWithType,
@@ -49,6 +49,7 @@ import {
     IProviderStateEvents,
 } from './interface';
 import { evolve, toArray } from './utils';
+import { checkProvider } from './utils/decorators';
 import { addParamType } from './utils/transactions';
 import { fetchBalanceDetails } from '@waves/node-api-js/cjs/api-node/addresses';
 import { fetchAssetsBalance } from '@waves/node-api-js/cjs/api-node/assets';
@@ -63,95 +64,55 @@ import {
     IConsole,
     IGetMessageOptions,
     IMessage,
+    IMakeOptions,
 } from '@waves/client-logs';
 
 export * from './interface';
 
 export class Signer {
     public currentProvider: IProvider | undefined;
-    private readonly _options: IOptions;
     private _userData: IUserData | undefined;
-    private _networkBytePromise: Promise<number>;
-    private __connectPromise: Promise<IProvider> | undefined;
+    private readonly _options: IOptions;
     private readonly _console: IConsole;
+    private readonly _networkByte: number;
 
-    private get _connectPromise(): Promise<IProvider> {
-        return this.__connectPromise || Promise.reject('Has no provider!');
-    }
+    private constructor(options: IOptions, networkByte: number) {
+        this._options = options;
+        this._networkByte = networkByte;
 
-    private set _connectPromise(promise: Promise<IProvider>) {
-        this.__connectPromise = promise;
-    }
-
-    constructor(options?: Partial<IOptions>) {
-        this._options = { ...DEFAULT_OPTIONS, ...(options || {}) };
-        this._networkBytePromise = getNetworkByte(this._options.NODE_URL).then(
-            (byte) => {
-                this._console.info('Success load node network byte', byte);
-                return byte;
-            },
-            (error) => {
-                this._console.error("Can't get network byte from node", error);
-                return Promise.reject(error);
-            }
+        this._console = makeConsole(
+            Signer._getConsoleLogParams(options.LOG_LEVEL)
         );
-        switch (this._options.LOG_LEVEL) {
-            case 'error':
-                this._console = makeConsole({
-                    namespace: 'Signer',
-                    keepMessageTypes: ['warn', 'error'],
-                    logMessageTypes: ['error'],
-                });
-                break;
-            case 'production':
-                this._console = makeConsole({
-                    namespace: 'Signer',
-                    keepMessageTypes: ['warn', 'error'],
-                    logMessageTypes: [],
-                });
-                break;
-            case 'verbose':
-                this._console = makeConsole({
-                    namespace: 'Signer',
-                    keepMessageTypes: ['warn', 'error'],
-                    logMessageTypes: ['info', 'log', 'warn', 'error'],
-                });
-                break;
-        }
-
         this._console.info('Success create Signer with options', this._options);
     }
 
+    @checkProvider
     public on<EVENT extends keyof IProviderStateEvents>(
         event: EVENT,
         hander: THandler<IProviderStateEvents[EVENT]>
     ): Signer {
         this._console.info(`Add handler for "${event}"`);
-        this._connectPromise.then((provider) => {
-            provider.on(event, hander);
-        });
+        this.currentProvider!.on(event, hander);
         return this;
     }
 
+    @checkProvider
     public once<EVENT extends keyof IProviderStateEvents>(
         event: EVENT,
         hander: THandler<IProviderStateEvents[EVENT]>
     ): Signer {
         this._console.info(`Add once handler for "${event}"`);
-        this._connectPromise.then((provider) => {
-            provider.once(event, hander);
-        });
+        this.currentProvider!.once(event, hander);
         return this;
     }
 
+    @checkProvider
     public off<EVENT extends keyof IProviderStateEvents>(
         event: EVENT,
         hander: THandler<IProviderStateEvents[EVENT]>
     ): Signer {
         this._console.info(`Remove handler for "${event}"`);
-        this._connectPromise.then((provider) => {
-            provider.off(event, hander);
-        });
+        this.currentProvider!.off(event, hander);
         return this;
     }
 
@@ -162,8 +123,11 @@ export class Signer {
     /**
      * Запросить байт сети
      */
-    public getNetworkByte(): Promise<number> {
-        return this._networkBytePromise;
+    public getNetworkByte(): { networkByte: number; chainId: string } {
+        return {
+            networkByte: this._networkByte,
+            chainId: String.fromCharCode(this._networkByte),
+        };
     }
 
     /**
@@ -182,19 +146,14 @@ export class Signer {
         this._console.info('Set new Provider', provider);
         this.currentProvider = provider;
 
-        const result = this._networkBytePromise.then((networkByte) => {
-            this._console.info(
-                `Call provider "connect" method with node: ${this._options.NODE_URL}, and network byte: ${networkByte}`
-            );
-            return provider.connect({
+        return provider
+            .connect({
                 NODE_URL: this._options.NODE_URL,
-                NETWORK_BYTE: networkByte,
+                NETWORK_BYTE: this._networkByte,
+            })
+            .then(() => {
+                this._console.info('Connect promise resolved!');
             });
-        });
-
-        this._connectPromise = result.then(() => provider);
-
-        return result;
     }
 
     /**
@@ -255,65 +214,62 @@ export class Signer {
      * await waves.login(); // Авторизуемся. Возвращает адрес и публичный ключ
      * ```
      */
+    @checkProvider
     public login(): Promise<IUserData> {
-        return this._connectPromise
-            .then((provider) => provider.login())
-            .then((data) => {
-                if (!this._userData) {
-                    this._console.info('Add user login data', data);
-                    this._userData = data;
-                } else {
-                    if (this._userData.address !== data.address) {
-                        throw new Error('Ivalid provider work! Wrong change provider address!');
-                    }
+        return this.currentProvider!.login().then((data) => {
+            if (!this._userData) {
+                this._console.info('Add user login data', data);
+                this._userData = data;
+            } else {
+                if (this._userData.address !== data.address) {
+                    throw new Error(
+                        'Ivalid provider work! Wrong change provider address!'
+                    );
                 }
+            }
 
-                return data;
-            });
+            return data;
+        });
     }
 
     /**
      * Вылогиниваемся из юзера
      */
+    @checkProvider
     public logout(): Promise<void> {
-        return this._connectPromise
-            .then((provider) => provider.logout())
-            .then(() => {
-                this._console.info('Logout');
-                this._userData = undefined;
-            });
+        return this.currentProvider!.logout().then(() => {
+            this._console.info('Logout');
+            this._userData = undefined;
+        });
     }
 
     /**
      * Подписываем сообщение пользователя (провайдер может устанавливать префикс)
      * @param message
      */
+    @checkProvider
     public signMessage(
         message: string | number
     ): Promise<IOffchainSignResult<string | number>> {
-        return this._connectPromise.then((provider) =>
-            provider.signMessage(message)
-        );
+        return this.currentProvider!.signMessage(message);
     }
 
     /**
      * Подписываем типизированные данные
      * @param data
      */
+    @checkProvider
     public signTypedData(
         data: Array<ITypedData>
     ): Promise<IOffchainSignResult<Array<ITypedData>>> {
-        return this._connectPromise.then((provider) =>
-            provider.signTypedData(data)
-        );
+        return this.currentProvider!.signTypedData(data);
     }
 
+    @checkProvider
     public signBytes(
         data: Uint8Array | Array<number>
     ): Promise<IOffchainSignResult<Uint8Array | Array<number>>> {
-        return this._connectPromise.then((privuder) =>
-            privuder.signBytes(data)
-        );
+        return this.currentProvider!.signBytes(data);
     }
 
     /**
@@ -406,9 +362,9 @@ export class Signer {
         return this._createPipelineAPI([addParamType('invoke', data)]);
     }
 
+    @checkProvider
     public order(data: IOrder): IOrderApi {
-        const sign = () =>
-            this._connectPromise.then((provider) => provider.order(data));
+        const sign = () => this.currentProvider!.order(data);
         return {
             sign,
             limit: () =>
@@ -436,24 +392,22 @@ export class Signer {
         };
     }
 
+    @checkProvider
     public encryptMessage(
         sharedKey: string,
         message: string,
         prefix?: string
     ): Promise<string> {
-        return this._connectPromise.then((provider) =>
-            provider.decryptMessage(sharedKey, message, prefix)
-        );
+        return this.currentProvider!.decryptMessage(sharedKey, message, prefix);
     }
 
+    @checkProvider
     public decryptMessage(
         sharedKey: string,
         message: string,
         prefix?: string
     ): Promise<string> {
-        return this._connectPromise.then((provider) =>
-            provider.decryptMessage(sharedKey, message, prefix)
-        );
+        return this.currentProvider!.decryptMessage(sharedKey, message, prefix);
     }
 
     /**
@@ -540,12 +494,36 @@ export class Signer {
         return { sign, broadcast };
     }
 
+    @checkProvider
     private _sign<T extends Array<TTransactionParamWithType>>(
         list: T
     ): Promise<TParamsToSign<T>> {
-        return this._connectPromise.then((provider) =>
-            provider.sign(list)
-        ) as any;
+        return this.currentProvider!.sign(list) as any; // TODO Fix types
+    }
+
+    private static _getConsoleLogParams(
+        logLevel: IOptions['LOG_LEVEL']
+    ): Partial<IMakeOptions> {
+        switch (logLevel) {
+            case 'error':
+                return {
+                    namespace: 'Signer',
+                    keepMessageTypes: ['warn', 'error'],
+                    logMessageTypes: ['error'],
+                };
+            case 'production':
+                return {
+                    namespace: 'Signer',
+                    keepMessageTypes: ['warn', 'error'],
+                    logMessageTypes: [],
+                };
+            case 'verbose':
+                return {
+                    namespace: 'Signer',
+                    keepMessageTypes: ['warn', 'error'],
+                    logMessageTypes: ['info', 'log', 'warn', 'error'],
+                };
+        }
     }
 }
 
