@@ -268,6 +268,7 @@ export interface IInvoke<LONG = TLong> extends ITXBase<LONG> {
     payment?: Array<IMoney>;
     call?: ICall;
     chainId?: number;
+    feeAssetId?: string;
 }
 
 export interface IDataEntry {
