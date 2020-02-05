@@ -1,20 +1,35 @@
+import { IWithId, TTransactionWithProofs } from '@waves/ts-types';
+import { IExchangeTransactionOrderWithProofs } from '@waves/ts-types/src';
+import { libs, order, signTx } from '@waves/waves-transactions';
+import { EventEmitter } from 'typed-ts-events';
 import {
     IConnectOptions,
+    IOffchainSignResult,
+    IOrder,
     IProvider,
+    IProviderStateEvents,
     ITypedData,
     IUserData,
     TLong,
+    TProviderState,
     TTransactionParamWithType,
-    IOrder,
-    IOffchainSignResult,
 } from '../src/interface';
-import { EventEmitter } from 'typed-ts-events';
-import { libs, signTx, order } from '@waves/waves-transactions';
-import { IWithId, TTransactionWithProofs } from '@waves/ts-types';
 import { NETWORK_BYTE } from './_state';
-import { IExchangeTransactionOrderWithProofs } from '@waves/ts-types/src';
 
-export class TestProvider extends EventEmitter<TEvents> implements IProvider {
+type TEvents = {
+    [Key in keyof Omit<
+        IProvider,
+        'on' | 'once' | 'off'
+    >]: IProvider[Key] extends (...args: infer A) => any ? A : never;
+};
+
+export class TestProvider extends EventEmitter<TEvents & IProviderStateEvents>
+    implements IProvider {
+    public state: TProviderState = {
+        logined: false,
+        activeUser: null,
+    };
+
     private options: IConnectOptions = {
         NETWORK_BYTE: NETWORK_BYTE,
         NODE_URL: 'https://nodes.wavesplatform.com',
@@ -24,6 +39,18 @@ export class TestProvider extends EventEmitter<TEvents> implements IProvider {
     constructor(seed?: string) {
         super();
         this.seed = seed || libs.crypto.randomSeed();
+    }
+
+    public on(event: any, handler: any): any {
+        return super.on(event, handler);
+    }
+
+    public once(event: any, handler: any): any {
+        return super.once(event, handler);
+    }
+
+    public off(event?: any, handler?: any): any {
+        return super.off(event, handler);
     }
 
     public connect(options: IConnectOptions): Promise<void> {
@@ -107,7 +134,8 @@ export class TestProvider extends EventEmitter<TEvents> implements IProvider {
         message: string,
         prefix?: string
     ): Promise<string> {
-        
+        this.trigger('encryptMessage', [sharedKey, message, prefix]);
+        return Promise.resolve('TODO');
     }
 
     public decryptMessage(
@@ -115,12 +143,7 @@ export class TestProvider extends EventEmitter<TEvents> implements IProvider {
         message: string,
         prefix?: string
     ): Promise<string> {
-        
+        this.trigger('decryptMessage', [sharedKey, message, prefix]);
+        return Promise.resolve('TODO');
     }
 }
-
-type TEvents = {
-    [Key in keyof IProvider]: IProvider[Key] extends (...args: infer A) => any
-        ? A
-        : never;
-};

@@ -1,9 +1,26 @@
 import {
+    IConsole,
+    IGetMessageOptions,
+    IMessage,
+    makeConsole,
+    makeOptions,
+} from '@waves/client-logs';
+import { fetchBalanceDetails } from '@waves/node-api-js/cjs/api-node/addresses';
+import { fetchAssetsBalance } from '@waves/node-api-js/cjs/api-node/assets';
+import getNetworkByte from '@waves/node-api-js/cjs/tools/blocks/getNetworkByte';
+import request from '@waves/node-api-js/cjs/tools/request';
+import stringify from '@waves/node-api-js/cjs/tools/stringify';
+import broadcast from '@waves/node-api-js/cjs/tools/transactions/broadcast';
+import wait from '@waves/node-api-js/cjs/tools/transactions/wait';
+import {
     TTransactionFromAPI,
     TTransactionFromAPIMap,
     TTransactionWithProofs,
+    IExchangeTransactionOrderWithProofs,
 } from '@waves/ts-types';
-import { NAME_MAP, DEFAULT_OPTIONS } from './constants';
+import { TTransactionsApi1 } from './api';
+import { NAME_MAP } from './constants';
+import { ERROR_CODE_MAP, SignerError } from './errors/SignerError';
 import {
     IAlias,
     IAliasWithType,
@@ -24,7 +41,11 @@ import {
     ILeaseWithType,
     IMassTransfer,
     IMassTransferWithType,
+    IOffchainSignResult,
+    IOrder,
+    IOrderApi,
     IProvider,
+    IProviderStateEvents,
     IReissue,
     IReissueWithType,
     ISetAssetScript,
@@ -35,55 +56,59 @@ import {
     ISponsorshipWithType,
     ITransfer,
     ITransferWithType,
-    ITypedData,
     IUserData,
     TActionsApi,
+    THandler,
     TLong,
     TParamsToApi,
     TParamsToSign,
     TTransactionParamWithType,
-    IOrder,
-    IOrderApi,
-    IOffchainSignResult,
-    THandler,
-    IProviderStateEvents,
 } from './interface';
 import { evolve, toArray } from './utils';
-import { checkProvider } from './utils/decorators';
-import { addParamType } from './utils/transactions';
-import { fetchBalanceDetails } from '@waves/node-api-js/cjs/api-node/addresses';
-import { fetchAssetsBalance } from '@waves/node-api-js/cjs/api-node/assets';
-import wait from '@waves/node-api-js/cjs/tools/transactions/wait';
-import broadcast from '@waves/node-api-js/cjs/tools/transactions/broadcast';
-import request from '@waves/node-api-js/cjs/tools/request';
-import stringify from '@waves/node-api-js/cjs/tools/stringify';
-import getNetworkByte from '@waves/node-api-js/cjs/tools/blocks/getNetworkByte';
-import { TTransactionsApi1 } from './api';
 import {
-    makeConsole,
-    IConsole,
-    IGetMessageOptions,
-    IMessage,
-    IMakeOptions,
-} from '@waves/client-logs';
+    catchNetworkErrors,
+    checkAuth,
+    checkProvider,
+    catchProviderError,
+} from './utils/decorators';
+import { addParamType } from './utils/transactions';
 
 export * from './interface';
 
 export class Signer {
     public currentProvider: IProvider | undefined;
-    private _userData: IUserData | undefined;
-    private readonly _options: IOptions;
+    public readonly options: IOptions;
     private readonly _console: IConsole;
-    private readonly _networkByte: number;
+    private readonly _networkBytePromise: Promise<number>;
 
-    private constructor(options: IOptions, networkByte: number) {
-        this._options = options;
-        this._networkByte = networkByte;
+    constructor(options: IOptions) {
+        if (!options.NODE_URL) {
+            throw new SignerError(
+                ERROR_CODE_MAP.WRONG_SIGNER_PARAMS,
+                'NODE_URL'
+            );
+        }
+
+        this.options = options;
+        this._networkBytePromise = getNetworkByte(this.options.NODE_URL).catch(
+            (e) => {
+                const error = new SignerError(
+                    ERROR_CODE_MAP.NETWORK_BYTE_ERROR,
+                    {
+                        node: this.options.NODE_URL,
+                        error: e.message as string,
+                    }
+                );
+
+                this._console.error(error);
+                return Promise.reject(error);
+            }
+        );
 
         this._console = makeConsole(
-            Signer._getConsoleLogParams(options.LOG_LEVEL)
+            makeOptions(options.LOG_LEVEL ?? 'production', 'Signer')
         );
-        this._console.info('Success create Signer with options', this._options);
+        this._console.info('Success create Signer with options', this.options);
     }
 
     @checkProvider
@@ -116,6 +141,26 @@ export class Signer {
         return this;
     }
 
+    @checkProvider
+    @catchProviderError
+    public auth(
+        expirationDate: Date | number
+    ): Promise<IOffchainSignResult<string>> {
+        const now = Date.now();
+        const expiration =
+            expirationDate instanceof Date
+                ? expirationDate.getTime()
+                : expirationDate;
+
+        if (expiration < now) {
+            return Promise.reject(
+                new SignerError(ERROR_CODE_MAP.WRONG_AUTH_PARAMS, void 0)
+            );
+        }
+
+        return this.currentProvider!.auth(expiration, location.hostname);
+    }
+
     public getMessages(options?: IGetMessageOptions): Array<IMessage> {
         return this._console.getMessages(options);
     }
@@ -123,11 +168,11 @@ export class Signer {
     /**
      * Запросить байт сети
      */
-    public getNetworkByte(): { networkByte: number; chainId: string } {
-        return {
-            networkByte: this._networkByte,
-            chainId: String.fromCharCode(this._networkByte),
-        };
+    public getNetworkByte(): Promise<{ networkByte: number; chainId: string }> {
+        return this._networkBytePromise.then((byte) => ({
+            networkByte: byte,
+            chainId: String.fromCharCode(byte),
+        }));
     }
 
     /**
@@ -143,16 +188,35 @@ export class Signer {
      * ```
      */
     public setProvider(provider: IProvider): Promise<void> {
+        Signer._checkProviderInterface(provider);
         this._console.info('Set new Provider', provider);
         this.currentProvider = provider;
 
-        return provider
-            .connect({
-                NODE_URL: this._options.NODE_URL,
-                NETWORK_BYTE: this._networkByte,
-            })
+        provider.on('onLogin', (user) => {
+            this._console.info('User login succesifyl!', user);
+        });
+
+        provider.on('onLogout', () => {
+            this._console.info('User logout!');
+        });
+
+        return this._networkBytePromise
+            .then((networkByte) =>
+                provider.connect({
+                    NODE_URL: this.options.NODE_URL,
+                    NETWORK_BYTE: networkByte,
+                })
+            )
             .then(() => {
                 this._console.info('Connect promise resolved!');
+            })
+            .catch(() => {
+                const error = new SignerError(
+                    ERROR_CODE_MAP.PROVIDER_CONNECT,
+                    void 0
+                );
+                this._console.error(error);
+                return Promise.reject(error);
             });
     }
 
@@ -164,14 +228,14 @@ export class Signer {
      * await waves.getBalance(); // Возвращает балансы пользователя
      * ```
      */
+    @checkProvider
+    @checkAuth
+    @catchNetworkErrors({ requestName: 'user balances' })
     public getBalance(): Promise<Array<IBalance>> {
-        if (!this._userData) {
-            return Promise.reject(new Error('Need login for get balances!'));
-        }
-        const user = this._userData;
+        const user = this.currentProvider!.state.activeUser!;
 
         return Promise.all([
-            fetchBalanceDetails(this._options.NODE_URL, user.address).then(
+            fetchBalanceDetails(this.options.NODE_URL, user.address).then(
                 (data) => ({
                     assetId: 'WAVES',
                     assetName: 'Waves',
@@ -183,13 +247,13 @@ export class Signer {
                     isSmart: false,
                 })
             ),
-            fetchAssetsBalance(this._options.NODE_URL, user.address).then(
+            fetchAssetsBalance(this.options.NODE_URL, user.address).then(
                 (data) =>
                     data.balances.map((item) => ({
                         assetId: item.assetId,
                         assetName: item.issueTransaction.name,
                         decimals: item.issueTransaction.decimals,
-                        amount: String(item.balance),
+                        amount: item.balance,
                         isMyAsset:
                             item.issueTransaction.sender === user.address,
                         tokens:
@@ -215,32 +279,18 @@ export class Signer {
      * ```
      */
     @checkProvider
+    @catchProviderError
     public login(): Promise<IUserData> {
-        return this.currentProvider!.login().then((data) => {
-            if (!this._userData) {
-                this._console.info('Add user login data', data);
-                this._userData = data;
-            } else {
-                if (this._userData.address !== data.address) {
-                    throw new Error(
-                        'Ivalid provider work! Wrong change provider address!'
-                    );
-                }
-            }
-
-            return data;
-        });
+        return this.currentProvider!.login();
     }
 
     /**
      * Вылогиниваемся из юзера
      */
     @checkProvider
+    @catchProviderError
     public logout(): Promise<void> {
-        return this.currentProvider!.logout().then(() => {
-            this._console.info('Logout');
-            this._userData = undefined;
-        });
+        return this.currentProvider!.logout();
     }
 
     /**
@@ -248,28 +298,11 @@ export class Signer {
      * @param message
      */
     @checkProvider
+    @catchProviderError
     public signMessage(
         message: string | number
     ): Promise<IOffchainSignResult<string | number>> {
         return this.currentProvider!.signMessage(message);
-    }
-
-    /**
-     * Подписываем типизированные данные
-     * @param data
-     */
-    @checkProvider
-    public signTypedData(
-        data: Array<ITypedData>
-    ): Promise<IOffchainSignResult<Array<ITypedData>>> {
-        return this.currentProvider!.signTypedData(data);
-    }
-
-    @checkProvider
-    public signBytes(
-        data: Uint8Array | Array<number>
-    ): Promise<IOffchainSignResult<Uint8Array | Array<number>>> {
-        return this.currentProvider!.signBytes(data);
     }
 
     /**
@@ -281,6 +314,7 @@ export class Signer {
         );
     }
 
+    // TODO!!!!
     public batch(
         txOrList: TTransactionParamWithType | Array<TTransactionParamWithType>
     ): TActionsApi<TTransactionParamWithType> {
@@ -363,15 +397,23 @@ export class Signer {
     }
 
     @checkProvider
+    @catchNetworkErrors({ requestName: 'set orider' })
     public order(data: IOrder): IOrderApi {
-        const sign = () => this.currentProvider!.order(data);
+        if (!this.options.MATCHER_URL) {
+            throw new SignerError(
+                ERROR_CODE_MAP.NO_MATCHER_URL_PROVIDED,
+                void 0
+            );
+        }
+
+        const sign = () => this._signOrder(data);
         return {
             sign,
             limit: () =>
                 sign().then((order) =>
                     request({
                         url: '/matcher/orderbook',
-                        base: this._options.MATCHER_URL,
+                        base: this.options!.MATCHER_URL as string,
                         options: {
                             method: 'POST',
                             body: stringify(order),
@@ -382,7 +424,7 @@ export class Signer {
                 sign().then((order) =>
                     request({
                         url: '/matcher/orderbook/market',
-                        base: this._options.MATCHER_URL,
+                        base: this.options!.MATCHER_URL as string,
                         options: {
                             method: 'POST',
                             body: stringify(order),
@@ -393,6 +435,7 @@ export class Signer {
     }
 
     @checkProvider
+    @catchProviderError
     public encryptMessage(
         sharedKey: string,
         message: string,
@@ -402,6 +445,7 @@ export class Signer {
     }
 
     @checkProvider
+    @catchProviderError
     public decryptMessage(
         sharedKey: string,
         message: string,
@@ -438,13 +482,14 @@ export class Signer {
             | Array<TTransactionWithProofs<TLong>>,
         opt?: Partial<IBroadcastOptions>
     ): Promise<TTransactionFromAPI<TLong> | Array<TTransactionFromAPI<TLong>>>;
+    @catchNetworkErrors({ requestName: 'broadcast transaction' })
     public broadcast(
         tx:
             | TTransactionWithProofs<TLong>
             | Array<TTransactionWithProofs<TLong>>,
         opt?: Partial<IBroadcastOptions>
     ): Promise<TTransactionFromAPI<TLong> | Array<TTransactionFromAPI<TLong>>> {
-        return broadcast(this._options.NODE_URL, tx as any, opt); // TODO Fix types
+        return broadcast(this.options.NODE_URL, tx as any, opt); // TODO Fix types
     }
 
     /**
@@ -460,11 +505,19 @@ export class Signer {
         tx: Array<T>,
         confirmations: number
     ): Promise<Array<T>>;
+    @catchNetworkErrors({ requestName: 'wait transaction transaction' })
     public waitTxConfirm<T extends TTransactionFromAPI<TLong>>(
         tx: T | Array<T>,
         confirmations: number
     ): Promise<T | Array<T>> {
-        return wait(this._options.NODE_URL, tx as any, { confirmations }); // TODO Fix types
+        return wait(this.options.NODE_URL, tx as any, { confirmations }); // TODO Fix types
+    }
+
+    @catchProviderError
+    private _signOrder(
+        order: IOrder
+    ): Promise<IExchangeTransactionOrderWithProofs<TLong>> {
+        return this.currentProvider!.order(order);
     }
 
     private _createPipelineAPI(list: any): any {
@@ -494,36 +547,38 @@ export class Signer {
         return { sign, broadcast };
     }
 
-    @checkProvider
+    @catchProviderError
     private _sign<T extends Array<TTransactionParamWithType>>(
         list: T
     ): Promise<TParamsToSign<T>> {
         return this.currentProvider!.sign(list) as any; // TODO Fix types
     }
 
-    private static _getConsoleLogParams(
-        logLevel: IOptions['LOG_LEVEL']
-    ): Partial<IMakeOptions> {
-        switch (logLevel) {
-            case 'error':
-                return {
-                    namespace: 'Signer',
-                    keepMessageTypes: ['warn', 'error'],
-                    logMessageTypes: ['error'],
-                };
-            case 'production':
-                return {
-                    namespace: 'Signer',
-                    keepMessageTypes: ['warn', 'error'],
-                    logMessageTypes: [],
-                };
-            case 'verbose':
-                return {
-                    namespace: 'Signer',
-                    keepMessageTypes: ['warn', 'error'],
-                    logMessageTypes: ['info', 'log', 'warn', 'error'],
-                };
-        }
+    private static _checkProviderInterface(provider: IProvider): void {
+        [
+            'state' as keyof IProvider,
+            'repositoryUrl' as keyof IProvider,
+            'on' as keyof IProvider,
+            'once' as keyof IProvider,
+            'off' as keyof IProvider,
+            'connect' as keyof IProvider,
+            'login' as keyof IProvider,
+            'logout' as keyof IProvider,
+            'signMessage' as keyof IProvider,
+            'signTypedData' as keyof IProvider,
+            'signBytes' as keyof IProvider,
+            'order' as keyof IProvider,
+            'encryptMessage' as keyof IProvider,
+            'decryptMessage' as keyof IProvider,
+            'sign' as keyof IProvider,
+        ].forEach((property) => {
+            if (typeof provider[property] !== 'function') {
+                throw new SignerError(ERROR_CODE_MAP.PROVIDER_INTERFACE_ERROR, {
+                    property,
+                    provider,
+                });
+            }
+        });
     }
 }
 
@@ -531,7 +586,6 @@ export interface IOptions {
     /**
      * Урл ноды  с которой будет работать библиотека
      * Байт сети получаем из урла ноды (из последнего блока)
-     * @default https://nodes.wavesplatform.com
      */
     NODE_URL: string;
     /**
@@ -541,7 +595,7 @@ export interface IOptions {
     /**
      * Level of logging signer actions
      */
-    LOG_LEVEL: 'production' | 'error' | 'verbose';
+    LOG_LEVEL?: 'production' | 'error' | 'verbose';
 }
 
 export interface IBroadcastOptions {

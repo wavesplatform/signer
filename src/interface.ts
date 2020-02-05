@@ -297,6 +297,7 @@ export interface IDataEntry {
 
 export interface IOffchainSignResult<T> {
     signedData: T;
+    bytes: Array<number>;
     signature: string;
 }
 
@@ -391,6 +392,8 @@ export type THandler<T> = (data: T) => any;
 
 export interface IProvider {
     state: TProviderState;
+    version: string;
+    repositoryUrl: string;
 
     on<EVENT extends keyof IProviderStateEvents>(
         event: EVENT,
@@ -432,22 +435,6 @@ export interface IProvider {
     ): Promise<IOffchainSignResult<string | number>>;
 
     /**
-     * Sign typed data
-     * @param data
-     */
-    signTypedData(
-        data: Array<ITypedData>
-    ): Promise<IOffchainSignResult<Array<ITypedData>>>;
-
-    /**
-     *
-     * @param data
-     */
-    signBytes(
-        data: Uint8Array | Array<number>
-    ): Promise<IOffchainSignResult<Uint8Array | Array<number>>>;
-
-    /**
      * Подписываем ордер
      * @param data
      */
@@ -470,6 +457,11 @@ export interface IProvider {
         message: string,
         prefix?: string
     ): Promise<string>;
+
+    auth(
+        expirationDate: number,
+        prefix: string
+    ): Promise<IOffchainSignResult<string>>;
 
     /**
      * Sign an array of transactions
