@@ -47,8 +47,7 @@
   },
   "dependencies": {
     "@waves/node-api-js": "0.0.1",
-    "@waves/ts-types": "^0.3.1",
-    "typescript-tuple": "^2.2.1"
+    "@waves/ts-types": "^0.3.2"
   },
   "devDependencies": {
     "@types/fs-extra": "^8.0.1",
