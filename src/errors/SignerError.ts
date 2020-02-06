@@ -18,10 +18,7 @@ const ERROR_MAP = {
         ].join('\n'),
     1006: (method: string) =>
         `Need auth (signer.login()) before use method "${method}"!`,
-    1007: (data: {
-        error: Error;
-        provider: IProvider;
-    }) =>
+    1007: (data: { error: Error; provider: IProvider }) =>
         [
             `Provider error!`,
             String(data.error),
@@ -32,8 +29,7 @@ const ERROR_MAP = {
             `Wrong provider interface! has no method or property "${data.property}"`,
             `Your can read about provider on site ${data.provider.repositoryUrl}`,
         ].join('\n'),
-        1009: () => 
-            `Expiration date is lower of now!`
+    1009: () => `Expiration date is lower of now!`,
 };
 
 export const ERROR_CODE_MAP = {
