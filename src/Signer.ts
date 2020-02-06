@@ -166,7 +166,7 @@ export class Signer {
     }
 
     /**
-     * Запросить байт сети
+     * Get network byte
      */
     public getNetworkByte(): Promise<{ networkByte: number; chainId: string }> {
         return this._networkBytePromise.then((byte) => ({
@@ -176,7 +176,7 @@ export class Signer {
     }
 
     /**
-     * Устанавливаем провайдер отвечающий за подпись
+     * Set the provider for sign
      * @param provider
      *
      * ```ts
@@ -221,11 +221,11 @@ export class Signer {
     }
 
     /**
-     * Получаем список балансов пользователя (необходимо выполнить login перед использованием)
+     * Get list of user balances (login method is required before)
      * Basic usage example:
      *
      * ```ts
-     * await waves.getBalance(); // Возвращает балансы пользователя
+     * await waves.getBalance(); // returns user balances
      * ```
      */
     @checkProvider
@@ -272,10 +272,10 @@ export class Signer {
     }
 
     /**
-     * Получаем информацию о пользователе
+     * Get user data (address and public key)
      *
      * ```ts
-     * await waves.login(); // Авторизуемся. Возвращает адрес и публичный ключ
+     * await waves.login(); // returns the addres and public key
      * ```
      */
     @checkProvider
@@ -285,7 +285,7 @@ export class Signer {
     }
 
     /**
-     * Вылогиниваемся из юзера
+     * User logout
      */
     @checkProvider
     @catchProviderError
@@ -294,7 +294,7 @@ export class Signer {
     }
 
     /**
-     * Подписываем сообщение пользователя (провайдер может устанавливать префикс)
+     * Sign the message (provider can add the some prefix of your message for more sequrity)
      * @param message
      */
     @checkProvider
@@ -306,7 +306,7 @@ export class Signer {
     }
 
     /**
-     * Получаем список балансов в кторых можно платить комиссию
+     * Get list of sponsorship balances
      */
     public getSponsoredBalances(): Promise<Array<IBalance>> {
         return this.getBalance().then((balance) =>
@@ -455,8 +455,8 @@ export class Signer {
     }
 
     /**
-     * Оправляем подписанную транзакцию
-     * @param tx    транзакция
+     * Send the signet transaction to node
+     * @param tx  transaction
      * @param opt
      */
     public broadcast<T extends TTransactionWithProofs<TLong>>(
@@ -464,7 +464,7 @@ export class Signer {
         opt?: Partial<IBroadcastOptions>
     ): Promise<TTransactionFromAPIMap<TLong>[T['type']]>;
     /**
-     * Отправляем массив транзакций
+     * Send the list of transaction to node
      * @param list
      * @param opt
      */
@@ -493,9 +493,12 @@ export class Signer {
     }
 
     /**
-     * Ожидаем подтверждения транзакции
-     * @param tx             транзакция
-     * @param confirmations  количество подтверждений которое ожидаем
+     * Waiting for confirmation of transaction
+     * When transaction is added to blockchain and 
+     * difference betwin transaction height and 
+     * block height will be equal to 'confirmations' property
+     * @param tx             transaction
+     * @param confirmations  count of confirmations from node
      */
     public waitTxConfirm<T extends TTransactionFromAPI<TLong>>(
         tx: T,
@@ -584,8 +587,8 @@ export class Signer {
 
 export interface IOptions {
     /**
-     * Урл ноды  с которой будет работать библиотека
-     * Байт сети получаем из урла ноды (из последнего блока)
+     * Node url
+     * Network byte getting from node (from last block)
      */
     NODE_URL: string;
     /**
@@ -600,11 +603,11 @@ export interface IOptions {
 
 export interface IBroadcastOptions {
     /**
-     * Оправлять транзакции после попадания предыдущей в блокчейн
+     * If the chain parameter is true, then transactions will be sent one after another
      */
     chain: boolean;
     /**
-     * Количество подтверждений после которого будет резолвится промис (для всех транзакций)
+     * Count of confirmations from node (for all of transactions)
      */
     confirmations: number;
 }

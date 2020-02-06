@@ -435,7 +435,7 @@ export interface IProvider {
     ): Promise<IOffchainSignResult<string | number>>;
 
     /**
-     * Подписываем ордер
+     * Sign the order
      * @param data
      */
     order(data: IOrder): Promise<IExchangeTransactionOrderWithProofs<TLong>>;
