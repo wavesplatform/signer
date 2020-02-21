@@ -46,7 +46,7 @@
     ]
   },
   "dependencies": {
-    "@waves/node-api-js": "^0.1.1",
+    "@waves/node-api-js": "^0.1.3",
     "@waves/ts-types": "^0.3.2"
   },
   "devDependencies": {
