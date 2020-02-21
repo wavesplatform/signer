@@ -1,6 +1,6 @@
 {
   "name": "@waves/signer",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "main": "cjs/Signer.js",
   "types": "cjs/Signer.d.ts",
   "repository": {
