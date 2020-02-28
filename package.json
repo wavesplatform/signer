@@ -1,8 +1,8 @@
 {
   "name": "@waves/signer",
   "version": "0.1.2",
-  "main": "cjs/Signer.js",
-  "types": "cjs/Signer.d.ts",
+  "main": "dist/cjs/src/index.js",
+  "types": "dist/cjs/src/index.d.ts",
   "repository": {
     "type": "git",
     "url": "https://github.com/wavesplatform/signer"
@@ -11,9 +11,7 @@
     "url": "https://github.com/wavesplatform/signer/issues"
   },
   "files": [
-    "dist",
-    "cjs",
-    "es"
+    "dist"
   ],
   "license": "MIT",
   "scripts": {
@@ -22,7 +20,11 @@
     "prepublish": "npm test",
     "postversion": "npm publish",
     "testCommand": "jest",
-    "build": "tsc -p ./tsconfig-cjs.json && tsc -p ./tsconfig-es.json && webpack",
+    "bundle:d": "cross-env NODE_ENV=development webpack",
+    "bundle:p": "cross-env NODE_ENV=production webpack",
+    "build:cjs": "shx rm -rf dist/cjs && tsc -p tsconfig.build.json -m commonjs --outDir dist/cjs",
+    "build:es": "shx rm -rf dist/es && tsc -p tsconfig.build.json -m es6 --outDir dist/es",
+    "build": "shx rm -rf dist && run-p build:* bundle:*",
     "test": "node-state -n -m typescript -o ./test/_state.ts -r",
     "prettier": "prettier --ignore-path .gitignore \"./src/**/*.+(js|jsx|ts|tsx)\"",
     "format": "npm run prettier -- --write",
@@ -58,7 +60,6 @@
     "eslint-plugin-prettier": "^3.1.2",
     "eslint-plugin-react": "^7.18.3",
     "eslint-plugin-react-hooks": "^2.5.0",
-    "fork-ts-checker-webpack-plugin": "^4.0.5",
     "prettier": "^1.19.1",
     "save-dev": "0.0.1-security"
   },
@@ -69,11 +70,15 @@
     "@waves/js-test-env": "^0.7.4",
     "@waves/node-state": "0.0.5",
     "@waves/waves-transactions": "^3.24.0",
+    "cross-env": "^7.0.0",
     "dotenv": "^8.2.0",
+    "fork-ts-checker-webpack-plugin": "^4.0.5",
     "fs-extra": "^8.1.0",
     "jest": "^24.9.0",
     "jest-extended": "^0.11.2",
     "node-fetch": "^2.6.0",
+    "npm-run-all": "^4.1.5",
+    "shx": "^0.3.2",
     "ts-jest": "^24.1.0",
     "ts-loader": "^6.2.0",
     "ts-node": "^8.5.2",
@@ -82,6 +87,7 @@
     "typedoc-plugin-markdown": "^2.2.11",
     "typescript": "^3.7.2",
     "webpack": "^4.41.0",
-    "webpack-cli": "^3.3.9"
+    "webpack-cli": "^3.3.9",
+    "webpack-merge": "^4.2.2"
   }
 }
