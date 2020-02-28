@@ -77,17 +77,17 @@ type SignerTxToTx<T> = T extends SignerTx
         ? TSetAssetScriptTransaction
         : T extends SignerAssetScriptTx
         ? TSetAssetScriptTransaction
-        // : T extends SignerInvokeTx
-        // ? TInvokeScriptTransaction
-        : never
+        : // : T extends SignerInvokeTx
+          // ? TInvokeScriptTransaction
+          never
     : never;
 
 export type SignedTx<T> = T extends SignerTx[]
     ? {
-        // Пришлось вытащить кейс с инвоком из SignerTxToTx, т.к. с ним тс ругается на слишком большой нестинг типов
-        [P in keyof T]: T[P] extends TInvokeScriptTransaction ?
-            TSignedTransaction<TInvokeScriptTransaction> :
-            TSignedTransaction<SignerTxToTx<T[P]>>
+          // Пришлось вытащить кейс с инвоком из SignerTxToTx, т.к. с ним тс ругается на слишком большой нестинг типов
+          [P in keyof T]: T[P] extends TInvokeScriptTransaction
+              ? TSignedTransaction<TInvokeScriptTransaction>
+              : TSignedTransaction<SignerTxToTx<T[P]>>;
       }
     : T extends SignerTx
     ? TSignedTransaction<SignerTxToTx<T>>

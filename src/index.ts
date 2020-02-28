@@ -248,7 +248,7 @@ export class Signer {
     public issue(data: IssueArgs): ChainApiFirstCall<SignerIssueTx> {
         return this._createPipelineAPI({
             ...data,
-            type: TRANSACTION_TYPE.ISSUE
+            type: TRANSACTION_TYPE.ISSUE,
         });
     }
 

@@ -29,6 +29,7 @@ module.exports = {
     'eslint:recommended',
     'plugin:@typescript-eslint/eslint-recommended',
     'plugin:@typescript-eslint/recommended',
+    'plugin:jest/recommended',
     'plugin:prettier/recommended',
     'prettier/@typescript-eslint',
   ],
@@ -111,7 +112,6 @@ module.exports = {
       },
     ],
     'no-unused-vars': 'off', // ts
-    'no-use-before-define': 'error',
     'no-useless-computed-key': 'error',
     'no-useless-concat': 'error',
     'no-useless-escape': 'error',
@@ -145,7 +145,7 @@ module.exports = {
     'import/newline-after-import': 'error',
     'import/no-absolute-path': 'error',
     'import/no-amd': 'error',
-    // 'import/no-default-export': 'error',
+    'import/no-default-export': 'error',
     'import/no-extraneous-dependencies': [
       'error',
       {
@@ -161,8 +161,8 @@ module.exports = {
     // typescript-eslint
     '@typescript-eslint/await-thenable': 'error',
     '@typescript-eslint/consistent-type-definitions': 'off',
-    '@typescript-eslint/interface-name-prefix': ['warn', 'always'],
-    '@typescript-eslint/member-delimiter-style': 'warn',
+    '@typescript-eslint/indent': 'off',
+    '@typescript-eslint/interface-name-prefix': 'off',
     '@typescript-eslint/member-ordering': 'warn',
     '@typescript-eslint/no-array-constructor': 'error',
     '@typescript-eslint/no-empty-function': 'error',
@@ -189,10 +189,9 @@ module.exports = {
     '@typescript-eslint/prefer-readonly': 'warn',
     '@typescript-eslint/prefer-regexp-exec': 'warn',
     '@typescript-eslint/prefer-string-starts-ends-with': 'warn',
-    // '@typescript-eslint/promise-function-async': 'warn',
+    '@typescript-eslint/promise-function-async': 'warn',
     '@typescript-eslint/require-array-sort-compare': 'error',
     '@typescript-eslint/require-await': 'error',
-    '@typescript-eslint/semi': 'error',
     // '@typescript-eslint/strict-boolean-expressions': 'error',
     '@typescript-eslint/type-annotation-spacing': 'error',
 
@@ -228,6 +227,37 @@ module.exports = {
     'react-hooks/exhaustive-deps': 'warn'
   },
   overrides: [
-
-  ]
+    {
+      files: [
+        'src/**/*.test.ts?(x)'
+      ],
+      env: {
+        jest: true,
+        'jest/globals': true,
+      },
+      rules: {
+        '@typescript-eslint/no-explicit-any': 'off',
+        'jest/no-disabled-tests': 'warn',
+        'jest/no-focused-tests': 'error',
+        'jest/no-alias-methods': 'error',
+        'jest/no-identical-title': 'error',
+        'jest/no-jasmine-globals': 'error',
+        'jest/no-jest-import': 'error',
+        'jest/no-test-prefixes': 'error',
+        'jest/no-test-callback': 'error',
+        'jest/no-test-return-statement': 'error',
+        'jest/prefer-to-have-length': 'warn',
+        'jest/prefer-spy-on': 'error',
+        'jest/valid-expect': 'error',
+      }
+    },
+    {
+      files: [
+        'src/icons/**/*.*'
+      ],
+      rules: {
+        'max-len': 'off'
+      },
+    },
+  ],
 };
