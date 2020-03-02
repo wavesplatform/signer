@@ -1,102 +1,204 @@
 import { writeFile } from 'fs-extra';
 import { join } from 'path';
 
-const GenericNames = ['Q', 'W', 'E', 'R', 'T', 'Y'];
-
-const compile = ({ index, params, returns, actions }: ICompileOptions) => `
-export type TTransactionsApi${index}<${params}> = {
-    issue(data: IIssue): ${returns('issue')}
-    transfer(data: ITransfer): ${returns('transfer')}
-    reissue(data: IReissue): ${returns('reissue')}
-    burn(data: IBurn): ${returns('burn')}
-    lease(data: ILease): ${returns('lease')}
-    exchange(data: IExchange): ${returns('exchange')}
-    cancelLease(data: ICancelLease): ${returns('cancelLease')}
-    alias(data: IAlias): ${returns('alias')}
-    massTransfer(data: IMassTransfer): ${returns('massTransfer')}
-    data(data: IData): ${returns('data')}
-    sponsorship(data: ISponsorship): ${returns('sponsorship')}
-    setScript(data: ISetScript): ${returns('setScript')}
-    setAssetScript(data: ISetAssetScript): ${returns('setAssetScript')}
-    invoke(data: IInvoke): ${returns('invoke')}
-} & TActionsApi<${actions}>;
-`.trim();
-
-interface ICompileOptions {
-    index: number;
-    params: string;
-    returns: (name: string) => string;
-    actions: string;
-}
-
-const generate = (generics: Array<string>) => {
-    const ext = (letter: string) => `${letter} extends TTransactionParamWithType<TLong>`;
-    const nameToType = (name: string) => `I${name.charAt(0).toUpperCase()}${name.slice(1)}WithType`;
-
-    const loop = (names: Array<string>): string => {
-        const lastReturns = names.length === generics.length ? `TTransactionsApi${generics.length + 1}<Array<TTransactionParamWithType<TLong>>>` : null;
-        const lastActions = names.length === generics.length ? 'Array<TTransactionParamWithType<TLong>>' : null;
-        const params: ICompileOptions = {
-            index: names.length,
-            params: names.map(ext).join(', '),
-            returns: name => lastReturns || `TTransactionsApi${names.length + 1}<${names.join(', ')}, ${nameToType(name)}>;`,
-            actions: lastActions || `[${names.join(', ')}]`
-
-        };
-
-        if (names.length === 1) {
-            return compile(params);
-        } else {
-            const template = loop(names.slice(0, -1));
-            return template + '\n\n' + compile(params);
-        }
-    };
-
-    return loop(generics) + '\n\n' + compile({
-        index: generics.length + 1,
-        actions: 'Array<TTransactionParamWithType>',
-        params: 'T extends Array<TTransactionParamWithType>',
-        returns: () => `TTransactionsApi${generics.length + 1}<T>`
-    });
+const config = {
+    genericNames: ['Q', 'W', 'E', 'R', 'T', 'Y'], // generate typings for length(genericNames) chained api calls
+    signerTxType: 'SignerTx',
+    signerTxTypePrefix: 'Signer',
+    signerTxTypeSuffix: 'Tx',
+    signedTxType: 'SignedTx',
+    boradcastedTxType: 'BroadcastedTx',
+    apiMethods: [
+        'issue',
+        'transfer',
+        'reissue',
+        'burn',
+        'lease',
+        'exchange',
+        'cancelLease',
+        'alias',
+        'massTransfer',
+        'data',
+        'sponsorship',
+        'setScript',
+        'setAssetScript',
+        'invoke',
+    ],
+    indentation: 4
 };
 
-writeFile(join(__dirname, 'src/api.ts'), `
-import { 
-    TTransactionParamWithType,
-    TLong,
-    IIssue,
-    IIssueWithType,
-    ITransfer,
-    ITransferWithType,
-    IReissue,
-    IReissueWithType,
-    IBurn,
-    IBurnWithType,
-    ILease,
-    ILeaseWithType,
-    IExchange,
-    IExchangeWithType,
-    ICancelLease,
-    ICancelLeaseWithType,
-    IAlias,
-    IAliasWithType,
-    IMassTransfer,
-    IMassTransferWithType,
-    IData,
-    IDataWithType,
-    ISponsorship,
-    ISponsorshipWithType,
-    ISetScript,
-    ISetScriptWithType,
-    ISetAssetScript,
-    ISetAssetScriptWithType,
-    IInvoke,
-    IInvokeWithType,
-    TActionsApi
-} from './interface';
+const indentLeft = (str: string): string => `${' '.repeat(config.indentation)}${str}`;
 
+const capitalize = (str: string): string =>
+    `${str.charAt(0).toUpperCase()}${str.slice(1)}`;
 
-${generate(GenericNames)}
-`).catch(e => {
+// generates name for n-th api type
+// example: `ChainApi1stCall`
+const generateTypeName = (nthApiCall: number): string => {
+    const s =
+        nthApiCall === 1
+            ? '1st'
+            : nthApiCall === 2
+            ? '2nd'
+            : nthApiCall === 3
+            ? '3rd'
+            : `${nthApiCall}th`;
+
+    return `ChainApi${s}Call`;
+};
+
+// generates type for chained api
+// example: `export type ChainApiSecondCall<Q extends SignerTx, W extends SignerTx> = {`
+const generateTypeHead = (nthApiCall: number, max: number) => {
+    const generateGenericConstrait = (genericName: string) => {
+        return `${genericName} extends ${config.signerTxType}${
+            nthApiCall < max ? '' : '[]'
+        }`;
+    };
+
+    const apiCallname = generateTypeName(nthApiCall);
+
+    if (nthApiCall < max) {
+        const generics = config.genericNames.slice(0, nthApiCall);
+
+        return `export type ${apiCallname}<${generics
+            .map(generateGenericConstrait)
+            .join(', ')}> = {`;
+    } else {
+        return `export type ${apiCallname}<${generateGenericConstrait(
+            config.genericNames[0]
+        )}> = {`;
+    }
+};
+
+// generates return type for api method
+// example: `ChainApiSecondCall<Q, SignerIssueTx>`
+const generateReturnType = (
+    methodName: string,
+    nthApiCall: number,
+    max: number
+): string => {
+    const signerTxType = `${config.signerTxTypePrefix}${capitalize(
+        methodName
+    )}${config.signerTxTypeSuffix}`;
+
+    if (nthApiCall < max - 1) {
+        const generics = config.genericNames.slice(0, nthApiCall).join(', ');
+
+        return `${generateTypeName(
+            nthApiCall + 1
+        )}<${generics}, ${signerTxType}>`;
+    } else if (nthApiCall === max - 1) {
+        return `${generateTypeName(nthApiCall + 1)}<${
+            config.signerTxType
+        }[]>`;
+    } else {
+        return `${generateTypeName(nthApiCall)}<${
+            config.genericNames[0]
+        }>`;
+    }
+};
+
+// generates api method type
+// example: `issue(data: IssueArgs): ChainApi2ndCall<Q, SignerIssueTx>`
+const generateMethodType = (
+    methodName: string,
+    nthApiCall: number,
+    max: number
+) =>
+    `${methodName}(data: ${capitalize(
+        methodName
+    )}Args): ${generateReturnType(methodName, nthApiCall, max)};`;
+
+const wrapBrackets = (str: string, nthApiCall: number, max: number) => {
+    return nthApiCall > 1 && nthApiCall < max ? `[${str}]` : str;
+};
+
+// generates sign api method type
+// example: `sign(): Promise<SignedTx<[Q, W]>>;`
+const generateSignType = (nthApiCall: number, max: number): string => {
+    if (nthApiCall < max) {
+        const generics = config.genericNames.slice(0, nthApiCall).join(', ');
+
+        return `sign(): Promise<${config.signedTxType}<${wrapBrackets(
+            generics,
+            nthApiCall,
+            max
+        )}>>;`;
+    } else {
+        return `sign(): Promise<${config.signedTxType}<${config.genericNames[0]}>>;`;
+    }
+};
+
+// generates broadcast api method type
+// example: `broadcast(options?: BroadcastOptions): Promise<BroadcastedTx<SignedTx<[Q, W]>>>;`
+const generateBroadcastType = (nthApiCall: number, max: number): string => {
+    if (nthApiCall < max) {
+        const generics = config.genericNames.slice(0, nthApiCall).join(', ');
+
+        return `broadcast(options?: BroadcastOptions): Promise<${
+            config.boradcastedTxType
+        }<${config.signedTxType}<${wrapBrackets(
+            generics,
+            nthApiCall,
+            max
+        )}>>>;`;
+    } else {
+        return `broadcast(options?: BroadcastOptions): Promise<${config.boradcastedTxType}<${config.signedTxType}<${config.genericNames[0]}>>>;`;
+    }
+};
+
+// generates chained api types
+const generateApiTypes = () => {
+    let generatedApiTypes = '';
+
+    const max = config.genericNames.length + 1;
+
+    for (let nthApiCall = 1; nthApiCall <= max; nthApiCall += 1) {
+        const signerMethodsTypes = config.apiMethods
+            .map(
+                (methodName) =>
+                    `${indentLeft(
+                        generateMethodType(methodName, nthApiCall, max)
+                    )}\n`
+            )
+            .join('');
+
+        let type =
+            `${generateTypeHead(nthApiCall, max)}\n` +
+            signerMethodsTypes +
+            `${indentLeft(generateSignType(nthApiCall, max))}\n` +
+            `${indentLeft(generateBroadcastType(nthApiCall, max))}\n};\n`;
+
+        generatedApiTypes = `${generatedApiTypes}${type}`;
+    }
+
+    return generatedApiTypes;
+};
+
+writeFile(
+    join(__dirname, 'src/types/api.ts'),
+    `
+import {
+    BroadcastOptions,
+    ${config.signerTxType},
+    ${config.signedTxType},
+    ${config.boradcastedTxType},
+    ${config.apiMethods
+        .map(
+            (methodName) =>
+                `${config.signerTxTypePrefix}${capitalize(methodName)}${
+                    config.signerTxTypeSuffix
+                }`
+        )
+        .join(',\n    ')},
+    ${config.apiMethods
+        .map((methodName) => `${capitalize(methodName)}Args`)
+        .join(',\n    ')}
+} from '.';
+
+${generateApiTypes()}
+`
+).catch((e) => {
     console.error(e);
 });

@@ -20,8 +20,10 @@ import {
     IInvokeScriptTransactionFields,
     TTransactionType,
     TRANSACTION_TYPE,
+    TSignedTransaction,
+    IWithApiMixin,
+    TTransactionMap,
 } from '@waves/ts-types';
-import { SignedTx } from './api';
 
 export interface TypedData {
     /**
@@ -131,7 +133,9 @@ export type InvokeArgs = CommonArgs &
         'chainId' | 'payment' | 'call' | 'feeAssetId'
     >;
 
-type SignerTxFactory<A, T extends TTransactionType> = A & { type: T };
+type SignerTxFactory<TxArgs, TxType extends TTransactionType> = TxArgs & {
+    type: TxType;
+};
 
 export type SignerIssueTx = SignerTxFactory<
     IssueArgs,
@@ -181,7 +185,7 @@ export type SignerExchangeTx = SignerTxFactory<
     ExchangeArgs,
     typeof TRANSACTION_TYPE.EXCHANGE
 >;
-export type SignerAssetScriptTx = SignerTxFactory<
+export type SignerSetAssetScriptTx = SignerTxFactory<
     SetAssetScriptArgs,
     typeof TRANSACTION_TYPE.SET_ASSET_SCRIPT
 >;
@@ -206,7 +210,7 @@ export type SignerTx =
     | SignerSetScriptTx
     | SignerSponsorshipTx
     | SignerExchangeTx
-    | SignerAssetScriptTx
+    | SignerSetAssetScriptTx
     | SignerInvokeTx;
 
 export type Balance = {
@@ -257,3 +261,20 @@ export interface BroadcastOptions {
      */
     confirmations?: number;
 }
+
+// Мапит транзакцию сайнера в транзакцию из @waves/ts-types
+export type SignerTxToSignedTx<T> = T extends SignerTx
+    ? T['type'] extends keyof TTransactionMap
+        ? TSignedTransaction<TTransactionMap[T['type']]>
+        : never
+    : never;
+
+export type SignedTx<T> = T extends SignerTx[]
+    ? { [P in keyof T]: SignerTxToSignedTx<T[P]> }
+    : SignerTxToSignedTx<T>;
+
+export type BroadcastedTx<T> = T extends SignedTx<SignerTx>[]
+    ? { [P in keyof T]: T[P] & IWithApiMixin }
+    : T extends SignedTx<SignerTx>
+    ? T & IWithApiMixin
+    : never;
