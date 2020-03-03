@@ -138,7 +138,8 @@ export type SponsorshipArgs = CommonArgs & ISponsorshipTransactionFields;
 
 export type ExchangeArgs = CommonArgs & IExchangeTransactionFields;
 
-export type SetAssetScriptArgs = CommonArgs & ISetAssetScriptTransactionFields;
+export type SetAssetScriptArgs = CommonArgs &
+    MakeOptional<ISetAssetScriptTransactionFields, 'chainId'>;
 
 export type InvokeArgs = CommonArgs &
     MakeOptional<
@@ -262,6 +263,7 @@ export interface SignerOptions {
      * Урл матчера (временно не поддерживается)
      */
     // MATCHER_URL: string;
+    debug?: boolean;
 }
 
 export interface BroadcastOptions {

@@ -192,6 +192,7 @@ module.exports = {
     '@typescript-eslint/promise-function-async': 'off',
     '@typescript-eslint/require-array-sort-compare': 'error',
     '@typescript-eslint/require-await': 'error',
+    '@typescript-eslint/explicit-function-return-type': 'off',
     // '@typescript-eslint/strict-boolean-expressions': 'error',
     '@typescript-eslint/type-annotation-spacing': 'error',
 

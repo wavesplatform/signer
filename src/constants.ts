@@ -2,6 +2,7 @@ import { BroadcastOptions, SignerOptions } from '.';
 
 export const DEFAULT_OPTIONS: SignerOptions = {
     NODE_URL: 'https://nodes.wavesplatform.com',
+    debug: false,
 };
 
 export const DEFAULT_BROADCAST_OPTIONS: BroadcastOptions = {
