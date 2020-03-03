@@ -44,7 +44,13 @@ import wait from '@waves/node-api-js/cjs/tools/transactions/wait';
 import broadcast from '@waves/node-api-js/cjs/tools/transactions/broadcast';
 import getNetworkByte from '@waves/node-api-js/cjs/tools/blocks/getNetworkByte';
 import { ChainApi1stCall } from './types/api';
-import { TRANSACTION_TYPE, TTransaction } from '@waves/ts-types';
+import {
+    TRANSACTION_TYPE,
+    TTransaction,
+    TTransactionType,
+} from '@waves/ts-types';
+import { validatorsMap } from './validation';
+import { SignerError } from './SignerError';
 
 export * from './types';
 
@@ -470,14 +476,94 @@ export class Signer {
         };
     }
 
+    private _validate<T>(toSign: T): { isValid: boolean; errors: string[] };
+    private _validate<T>(toSign: T[]): { isValid: boolean; errors: string[] };
+    private _validate<T extends SignerTx>(
+        toSign: T | T[]
+    ): { isValid: boolean; errors: string[] } {
+        const signerTxs = Array.isArray(toSign) ? toSign : [toSign];
+
+        const validateTx = (tx: SignerTx) => validatorsMap[tx.type](tx);
+        const knownTxPredicate = (type: TTransactionType) =>
+            Object.keys(validatorsMap).includes(String(type));
+
+        const unknownTxs = signerTxs.filter(
+            ({ type }) => !knownTxPredicate(type)
+        );
+        const knownTxs = signerTxs.filter(({ type }) => knownTxPredicate(type));
+
+        const invalidTxs = knownTxs
+            .map(validateTx)
+            .filter(({ isValid }) => !isValid);
+
+        if (invalidTxs.length === 0 && unknownTxs.length === 0) {
+            return { isValid: true, errors: [] };
+        } else {
+            if (process.env.NODE_ENV === 'production' && !this._options.debug) {
+                console.warn(
+                    'Signer validation error. Invalid transaction(s) arguments'
+                );
+            } else {
+                invalidTxs.forEach(
+                    ({ transaction, method: scope, invalidFields }) => {
+                        console.warn(
+                            '%cValidation error for %c%s %ctransaction: %O. Ivalid arguments: %c%s',
+                            'color: red',
+                            'color: default',
+                            scope,
+                            'color:red',
+                            transaction,
+                            'color: default',
+                            invalidFields?.join(', ')
+                        );
+                    }
+                );
+
+                unknownTxs.forEach((tx) => {
+                    console.warn(
+                        '%cValidation error for transaction: %O. Unknown transaction type: %c%s',
+                        'color: red',
+                        tx,
+                        'color: default',
+                        tx.type
+                    );
+                });
+            }
+
+            return {
+                isValid: false,
+                errors: [
+                    ...invalidTxs.map(
+                        ({ transaction, method: scope, invalidFields }) =>
+                            `Validation error for ${scope} transaction: ${JSON.stringify(
+                                transaction
+                            )}. Invalid arguments: ${invalidFields?.join(', ')}`
+                    ),
+                    ...unknownTxs.map(
+                        (tx) =>
+                            `Validation error for transaction ${JSON.stringify(
+                                tx
+                            )}. Unknown transaction type: ${tx.type}`
+                    ),
+                ],
+            };
+        }
+    }
+
     private _sign<T extends SignerTx>(toSign: T): Promise<SignedTx<T>>;
     private _sign<T extends SignerTx>(toSign: T[]): Promise<[SignedTx<T>]>;
     private _sign<T extends SignerTx>(
         toSign: T | T[]
     ): Promise<SignedTx<T> | [SignedTx<T>]> {
-        return this._connectPromise.then((provider) =>
-            provider.sign(toSign as any)
-        ); // any fixes "Expression produces a union type that is too complex to represent"
+        const validation = this._validate(toSign);
+
+        if (validation.isValid) {
+            return this._connectPromise.then(
+                (provider) => provider.sign(toSign as any) // any fixes "Expression produces a union type that is too complex to
+            );
+        } else {
+            throw new SignerError(1010, validation.errors);
+        }
     }
 }
 
