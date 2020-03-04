@@ -1,8 +1,8 @@
 {
   "name": "@waves/signer",
   "version": "0.1.2",
-  "main": "dist/cjs/src/index.js",
-  "types": "dist/cjs/src/index.d.ts",
+  "main": "dist/cjs/index.js",
+  "types": "dist/cjs/index.d.ts",
   "repository": {
     "type": "git",
     "url": "https://github.com/wavesplatform/signer"
@@ -17,11 +17,13 @@
   "scripts": {
     "watch": "webpack --watch",
     "prepare": "npm run build",
-    "prepublish": "npm test",
+    "prepublish": "npm test && npm run generateinterface.ts",
+    "postinstall": "npm run generateinterface.ts",
     "postversion": "npm publish",
     "testCommand": "jest",
-    "bundle:d": "cross-env NODE_ENV=development webpack",
-    "bundle:p": "cross-env NODE_ENV=production webpack",
+    "generateInterface": "npx ts-node generateinterface.ts",
+    "bundle:d": "npm run generateInterface && cross-env NODE_ENV=development webpack",
+    "bundle:p": "npm run generateInterface && cross-env NODE_ENV=production webpack",
     "build:cjs": "shx rm -rf dist/cjs && tsc -p tsconfig.build.json -m commonjs --outDir dist/cjs",
     "build:es": "shx rm -rf dist/es && tsc -p tsconfig.build.json -m es6 --outDir dist/es",
     "build": "shx rm -rf dist && run-p build:* bundle:*",

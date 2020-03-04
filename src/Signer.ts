@@ -70,21 +70,6 @@ export class Signer {
                 return byte;
             }
         );
-
-        this.issue = this.issue.bind(this);
-        this.transfer = this.transfer.bind(this);
-        this.reissue = this.reissue.bind(this);
-        this.burn = this.burn.bind(this);
-        this.lease = this.lease.bind(this);
-        this.exchange = this.exchange.bind(this);
-        this.cancelLease = this.cancelLease.bind(this);
-        this.alias = this.alias.bind(this);
-        this.massTransfer = this.massTransfer.bind(this);
-        this.data = this.data.bind(this);
-        this.sponsorship = this.sponsorship.bind(this);
-        this.setScript = this.setScript.bind(this);
-        this.setAssetScript = this.setAssetScript.bind(this);
-        this.invoke = this.invoke.bind(this);
     }
 
     public broadcast<T extends SignerTx>(
@@ -95,7 +80,8 @@ export class Signer {
         toBroadcast: Promise<SignedTx<T> | [SignedTx<T>]>,
         options?: BroadcastOptions
     ): Promise<BroadcastedTx<SignedTx<T>> | BroadcastedTx<[SignedTx<T>]>> {
-        return toBroadcast.then((res) => {
+        return toBroadcast.then((res: any) => {
+            // any fixes "Expression produces a union type that is too complex to represent"
             return broadcast(this._options.NODE_URL, res as any, options); // TODO поправить тип в broadcast
         }) as Promise<
             BroadcastedTx<SignedTx<T>> | BroadcastedTx<[SignedTx<T>]>
@@ -257,110 +243,179 @@ export class Signer {
     }
 
     public issue(data: IssueArgs): ChainApi1stCall<SignerIssueTx> {
-        return this._createPipelineAPI({
+        return this._issue([])(data);
+    }
+    private readonly _issue = (txList: SignerTx[]) => (
+        data: IssueArgs
+    ): ChainApi1stCall<SignerIssueTx> => {
+        return this._createPipelineAPI<SignerIssueTx>(txList, {
             ...data,
             type: TRANSACTION_TYPE.ISSUE,
         });
-    }
+    };
 
     public transfer(data: TransferArgs): ChainApi1stCall<SignerTransferTx> {
-        return this._createPipelineAPI({
+        return this._transfer([])(data);
+    }
+    private readonly _transfer = (txList: SignerTx[]) => (
+        data: TransferArgs
+    ): ChainApi1stCall<SignerTransferTx> => {
+        return this._createPipelineAPI<SignerTransferTx>(txList, {
             ...data,
             type: TRANSACTION_TYPE.TRANSFER,
         });
-    }
+    };
 
     public reissue(data: ReissueArgs): ChainApi1stCall<SignerReissueTx> {
-        return this._createPipelineAPI({
+        return this._reissue([])(data);
+    }
+    private readonly _reissue = (txList: SignerTx[]) => (
+        data: ReissueArgs
+    ): ChainApi1stCall<SignerReissueTx> => {
+        return this._createPipelineAPI<SignerReissueTx>(txList, {
             ...data,
             type: TRANSACTION_TYPE.REISSUE,
         });
-    }
+    };
 
     public burn(data: BurnArgs): ChainApi1stCall<SignerBurnTx> {
-        return this._createPipelineAPI({
+        return this._burn([])(data);
+    }
+    private readonly _burn = (txList: SignerTx[]) => (
+        data: BurnArgs
+    ): ChainApi1stCall<SignerBurnTx> => {
+        return this._createPipelineAPI<SignerBurnTx>(txList, {
             ...data,
             type: TRANSACTION_TYPE.BURN,
         });
-    }
+    };
 
     public lease(data: LeaseArgs): ChainApi1stCall<SignerLeaseTx> {
-        return this._createPipelineAPI({
+        return this._lease([])(data);
+    }
+    private readonly _lease = (txList: SignerTx[]) => (
+        data: LeaseArgs
+    ): ChainApi1stCall<SignerLeaseTx> => {
+        return this._createPipelineAPI<SignerLeaseTx>(txList, {
             ...data,
             type: TRANSACTION_TYPE.LEASE,
         });
-    }
+    };
 
     public exchange(data: ExchangeArgs): ChainApi1stCall<SignerExchangeTx> {
-        return this._createPipelineAPI({
+        return this._exchange([])(data);
+    }
+    private readonly _exchange = (txList: SignerTx[]) => (
+        data: ExchangeArgs
+    ): ChainApi1stCall<SignerExchangeTx> => {
+        return this._createPipelineAPI<SignerExchangeTx>(txList, {
             ...data,
             type: TRANSACTION_TYPE.EXCHANGE,
         });
-    }
+    };
 
     public cancelLease(
         data: CancelLeaseArgs
     ): ChainApi1stCall<SignerCancelLeaseTx> {
-        return this._createPipelineAPI({
+        return this._cancelLease([])(data);
+    }
+    private readonly _cancelLease = (txList: SignerTx[]) => (
+        data: CancelLeaseArgs
+    ): ChainApi1stCall<SignerCancelLeaseTx> => {
+        return this._createPipelineAPI<SignerCancelLeaseTx>(txList, {
             ...data,
             type: TRANSACTION_TYPE.CANCEL_LEASE,
         });
-    }
+    };
 
     public alias(data: AliasArgs): ChainApi1stCall<SignerAliasTx> {
-        return this._createPipelineAPI({
+        return this._alias([])(data);
+    }
+    private readonly _alias = (txList: SignerTx[]) => (
+        data: AliasArgs
+    ): ChainApi1stCall<SignerAliasTx> => {
+        return this._createPipelineAPI<SignerAliasTx>(txList, {
             ...data,
             type: TRANSACTION_TYPE.ALIAS,
         });
-    }
+    };
 
     public massTransfer(
         data: MassTransferArgs
     ): ChainApi1stCall<SignerMassTransferTx> {
-        return this._createPipelineAPI({
+        return this._massTransfer([])(data);
+    }
+    private readonly _massTransfer = (txList: SignerTx[]) => (
+        data: MassTransferArgs
+    ): ChainApi1stCall<SignerMassTransferTx> => {
+        return this._createPipelineAPI<SignerMassTransferTx>(txList, {
             ...data,
             type: TRANSACTION_TYPE.MASS_TRANSFER,
         });
-    }
+    };
 
     public data(data: DataArgs): ChainApi1stCall<SignerDataTx> {
-        return this._createPipelineAPI({
+        return this._data([])(data);
+    }
+    private readonly _data = (txList: SignerTx[]) => (
+        data: DataArgs
+    ): ChainApi1stCall<SignerDataTx> => {
+        return this._createPipelineAPI<SignerDataTx>(txList, {
             ...data,
             type: TRANSACTION_TYPE.DATA,
         });
-    }
+    };
 
     public sponsorship(
         data: SponsorshipArgs
     ): ChainApi1stCall<SignerSponsorshipTx> {
-        return this._createPipelineAPI({
-            ...data,
+        return this._sponsorship([])(data);
+    }
+    private readonly _sponsorship = (txList: SignerTx[]) => (
+        sponsorship: SponsorshipArgs
+    ): ChainApi1stCall<SignerSponsorshipTx> => {
+        return this._createPipelineAPI<SignerSponsorshipTx>(txList, {
+            ...sponsorship,
             type: TRANSACTION_TYPE.SPONSORSHIP,
         });
-    }
-
+    };
     public setScript(data: SetScriptArgs): ChainApi1stCall<SignerSetScriptTx> {
-        return this._createPipelineAPI({
-            ...data,
+        return this._setScript([])(data);
+    }
+    private readonly _setScript = (txList: SignerTx[]) => (
+        setScript: SetScriptArgs
+    ): ChainApi1stCall<SignerSetScriptTx> => {
+        return this._createPipelineAPI<SignerSetScriptTx>(txList, {
+            ...setScript,
             type: TRANSACTION_TYPE.SET_SCRIPT,
         });
-    }
+    };
 
     public setAssetScript(
         data: SetAssetScriptArgs
     ): ChainApi1stCall<SignerSetAssetScriptTx> {
-        return this._createPipelineAPI({
+        return this._setAssetScript([])(data);
+    }
+    private readonly _setAssetScript = (txList: SignerTx[]) => (
+        data: SetAssetScriptArgs
+    ): ChainApi1stCall<SignerSetAssetScriptTx> => {
+        return this._createPipelineAPI<SignerSetAssetScriptTx>(txList, {
             ...data,
             type: TRANSACTION_TYPE.SET_ASSET_SCRIPT,
         });
-    }
+    };
 
     public invoke(data: InvokeArgs): ChainApi1stCall<SignerInvokeTx> {
-        return this._createPipelineAPI({
+        return this._invoke([])(data);
+    }
+    private readonly _invoke = (txList: SignerTx[]) => (
+        data: InvokeArgs
+    ): ChainApi1stCall<SignerInvokeTx> => {
+        return this._createPipelineAPI<SignerInvokeTx>(txList, {
             ...data,
             type: TRANSACTION_TYPE.INVOKE_SCRIPT,
         });
-    }
+    };
 
     /**
      * Ожидаем подтверждения транзакции
@@ -383,28 +438,35 @@ export class Signer {
     }
 
     private _createPipelineAPI<T extends SignerTx>(
-        signerTxList: T
+        prevCallTxList: SignerTx[],
+        signerTx: T
     ): ChainApi1stCall<T> {
+        const txs = prevCallTxList.length
+            ? [...prevCallTxList, signerTx]
+            : signerTx;
+
+        const chainArgs = Array.isArray(txs) ? txs : [txs];
+
         return {
             ...({
-                issue: this.transfer,
-                transfer: this.transfer,
-                reissue: this.reissue,
-                burn: this.burn,
-                lease: this.lease,
-                exchange: this.exchange,
-                cancelLease: this.cancelLease,
-                alias: this.alias,
-                massTransfer: this.massTransfer,
-                data: this.data,
-                sponsorship: this.sponsorship,
-                setScript: this.setScript,
-                setAssetScript: this.setAssetScript,
-                invoke: this.invoke,
+                issue: this._issue(chainArgs),
+                transfer: this._transfer(chainArgs),
+                reissue: this._reissue(chainArgs),
+                burn: this._burn(chainArgs),
+                lease: this._lease(chainArgs),
+                exchange: this._exchange(chainArgs),
+                cancelLease: this._cancelLease(chainArgs),
+                alias: this._alias(chainArgs),
+                massTransfer: this._massTransfer(chainArgs),
+                data: this._data(chainArgs),
+                sponsorship: this._sponsorship(chainArgs),
+                setScript: this._setScript(chainArgs),
+                setAssetScript: this._setAssetScript(chainArgs),
+                invoke: this._invoke(chainArgs),
             } as any),
-            sign: () => this._sign<T>(signerTxList),
+            sign: () => this._sign<T>(txs as any),
             broadcast: (options?: BroadcastOptions) =>
-                this.broadcast<T>(this._sign<T>(signerTxList), options),
+                this.broadcast<T>(this._sign<T>(txs as any), options),
         };
     }
 
@@ -413,7 +475,9 @@ export class Signer {
     private _sign<T extends SignerTx>(
         toSign: T | T[]
     ): Promise<SignedTx<T> | [SignedTx<T>]> {
-        return this._connectPromise.then((provider) => provider.sign(toSign));
+        return this._connectPromise.then((provider) =>
+            provider.sign(toSign as any)
+        ); // any fixes "Expression produces a union type that is too complex to represent"
     }
 }
 

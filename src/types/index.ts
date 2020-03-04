@@ -107,26 +107,39 @@ type CommonArgs = Partial<Pick<ITransaction, 'fee' | 'senderPublicKey'>> & {
 
 export type IssueArgs = CommonArgs &
     MakeOptional<IIssueTransactionFields, 'chainId' | 'script'>;
+
 export type TransferArgs = CommonArgs &
     MakeOptional<ITransferTransactionFields, 'assetId' | 'feeAssetId'> &
     Partial<Pick<ITransferTransactionV3<TLong>, 'attachment'>>;
+
 export type ReissueArgs = CommonArgs &
     MakeOptional<IReissueTransactionFields, 'chainId'>;
+
 export type BurnArgs = CommonArgs &
     MakeOptional<IBurnTransactionFields, 'chainId'>;
+
 export type LeaseArgs = CommonArgs & ILeaseTransactionFields;
+
 export type CancelLeaseArgs = CommonArgs &
     MakeOptional<ICancelLeaseTransactionFields, 'chainId'>;
+
 export type AliasArgs = CommonArgs & IAliasTransactionFields;
+
 export type MassTransferArgs = CommonArgs &
     MakeOptional<IMassTransferTransactionFields, 'assetId'> &
     Partial<Pick<IMassTransferTransactionV2<TLong>, 'attachment'>>;
+
 export type DataArgs = CommonArgs & IDataTransactionFields;
+
 export type SetScriptArgs = CommonArgs &
     MakeOptional<ISetScriptTransactionFields, 'chainId'>;
+
 export type SponsorshipArgs = CommonArgs & ISponsorshipTransactionFields;
+
 export type ExchangeArgs = CommonArgs & IExchangeTransactionFields;
+
 export type SetAssetScriptArgs = CommonArgs & ISetAssetScriptTransactionFields;
+
 export type InvokeArgs = CommonArgs &
     MakeOptional<
         IInvokeScriptTransactionFields,
