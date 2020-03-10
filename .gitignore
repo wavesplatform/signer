@@ -7,3 +7,4 @@ cjs
 coverage
 .DS_Store
 src/**/*.d.ts
+src/types/api.ts

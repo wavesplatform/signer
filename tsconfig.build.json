@@ -1,0 +1,16 @@
+// we dont't need separate config for es module as we can pass to tsc -m es6 --outDir dist/es
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "sourceMap": true,
+    "declaration": true,
+  },
+  "include": [
+    "src/index.ts"
+  ],
+  "exclude": [
+    "test/**/*",
+    "**/__tests__/**/*",
+    "**/*.test.*",
+  ]
+}

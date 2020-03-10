@@ -1,23 +1,26 @@
 {
   "compilerOptions": {
-    "noImplicitAny": true,
-    "target": "ES5",
-    "experimentalDecorators": true,
-    "strict": true,
-    "sourceMap": true,
-    "declaration": false,
+    "target": "es5",
     "moduleResolution": "node",
+    "importHelpers": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "noImplicitThis": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "suppressImplicitAnyIndexErrors": true,
+    "noUnusedLocals": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "declaration": false,
     "lib": [
       "es5",
       "dom",
-      "es2015.iterable",
-      "es2015.promise"
+      "ESNext"
     ]
   },
-  "include": [
-    "src/Signer.ts"
-  ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "dist"
   ]
 }

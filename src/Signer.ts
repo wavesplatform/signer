@@ -1,81 +1,91 @@
+import { DEFAULT_OPTIONS } from './constants';
 import {
-    TTransactionFromAPI,
-    TTransactionFromAPIMap,
-    TTransactionWithProofs,
-} from '@waves/ts-types';
-import { DEFAULT_OPTIONS, NAME_MAP } from './constants';
-import {
-    IAlias,
-    IAliasWithType,
-    IBalance,
-    IBurn,
-    IBurnWithType,
-    ICancelLease,
-    ICancelLeaseWithType,
-    IData,
-    IDataWithType,
-    IExchange,
-    IExchangeWithType,
-    IInvoke,
-    IInvokeWithType,
-    IIssue,
-    IIssueWithType,
-    ILease,
-    ILeaseWithType,
-    IMassTransfer,
-    IMassTransferWithType,
-    IProvider,
-    IReissue,
-    IReissueWithType,
-    ISetAssetScript,
-    ISetAssetScriptWithType,
-    ISetScript,
-    ISetScriptWithType,
-    ISponsorship,
-    ISponsorshipWithType,
-    ITransfer,
-    ITransferWithType,
-    ITypedData,
-    IUserData,
-    TActionsApi,
-    TLong,
-    TParamsToApi,
-    TParamsToSign,
-    TTransactionParamWithType,
-} from './interface';
-import { evolve, toArray } from './utils';
-import { addParamType } from './utils/transactions';
+    TypedData,
+    UserData,
+    Provider,
+    Balance,
+    IssueArgs,
+    TransferArgs,
+    ReissueArgs,
+    BurnArgs,
+    LeaseArgs,
+    CancelLeaseArgs,
+    AliasArgs,
+    MassTransferArgs,
+    DataArgs,
+    SetScriptArgs,
+    SponsorshipArgs,
+    ExchangeArgs,
+    SetAssetScriptArgs,
+    InvokeArgs,
+    SignerTx,
+    SignerIssueTx,
+    SignerTransferTx,
+    SignerReissueTx,
+    SignerBurnTx,
+    SignerLeaseTx,
+    SignerExchangeTx,
+    SignerCancelLeaseTx,
+    SignerAliasTx,
+    SignerMassTransferTx,
+    SignerDataTx,
+    SignerSponsorshipTx,
+    SignerInvokeTx,
+    SignerSetAssetScriptTx,
+    SignerSetScriptTx,
+    BroadcastOptions,
+    SignerOptions,
+    SignedTx,
+    BroadcastedTx,
+} from './types';
 import { fetchBalanceDetails } from '@waves/node-api-js/cjs/api-node/addresses';
 import { fetchAssetsBalance } from '@waves/node-api-js/cjs/api-node/assets';
 import wait from '@waves/node-api-js/cjs/tools/transactions/wait';
 import broadcast from '@waves/node-api-js/cjs/tools/transactions/broadcast';
 import getNetworkByte from '@waves/node-api-js/cjs/tools/blocks/getNetworkByte';
-import { TTransactionsApi1 } from './api';
+import { ChainApi1stCall } from './types/api';
+import { TRANSACTION_TYPE, TTransaction } from '@waves/ts-types';
 
-export * from './interface';
+export * from './types';
 
 export class Signer {
-    public currentProvider: IProvider | undefined;
-    private readonly _options: IOptions;
-    private _userData: IUserData | undefined;
-    private _networkBytePromise: Promise<number>;
-    private __connectPromise: Promise<IProvider> | undefined;
+    public currentProvider: Provider | undefined;
+    private _userData: UserData | undefined;
+    private __connectPromise: Promise<Provider> | undefined;
+    private readonly _options: SignerOptions;
+    private readonly _networkBytePromise: Promise<number>;
 
-    private get _connectPromise(): Promise<IProvider> {
+    private get _connectPromise(): Promise<Provider> {
         return this.__connectPromise || Promise.reject('Has no provider!');
     }
 
-    private set _connectPromise(promise: Promise<IProvider>) {
+    private set _connectPromise(promise: Promise<Provider>) {
         this.__connectPromise = promise;
     }
 
-    constructor(options?: Partial<IOptions>) {
+    constructor(options?: Partial<SignerOptions>) {
         this._options = { ...DEFAULT_OPTIONS, ...(options || {}) };
         this._networkBytePromise = getNetworkByte(this._options.NODE_URL).then(
             (byte) => {
                 return byte;
             }
         );
+    }
+
+    public broadcast<T extends SignerTx>(
+        toBroadcast: Promise<SignedTx<T>>,
+        options?: BroadcastOptions
+    ): Promise<BroadcastedTx<SignedTx<T>>>;
+    public broadcast<T extends SignerTx>(
+        toBroadcast: Promise<SignedTx<T> | [SignedTx<T>]>,
+        options?: BroadcastOptions
+    ): Promise<BroadcastedTx<SignedTx<T>> | BroadcastedTx<[SignedTx<T>]>> {
+        return toBroadcast.then((res: any) => {
+            // any fixes "Expression produces a union type that is too complex to represent"
+            return broadcast(this._options.NODE_URL, res as any, options); // TODO поправить тип в broadcast
+        }) as Promise<
+            BroadcastedTx<SignedTx<T>> | BroadcastedTx<[SignedTx<T>]>
+        >;
     }
 
     /**
@@ -97,7 +107,7 @@ export class Signer {
      * waves.setProvider(new Provider('SEED'));
      * ```
      */
-    public setProvider(provider: IProvider): Promise<void> {
+    public setProvider(provider: Provider): Promise<void> {
         this.currentProvider = provider;
 
         const result = this._networkBytePromise.then((networkByte) =>
@@ -120,15 +130,15 @@ export class Signer {
      * await waves.getBalance(); // Возвращает балансы пользователя
      * ```
      */
-    public getBalance(): Promise<Array<IBalance>> {
+    public getBalance(): Promise<Array<Balance>> {
         if (!this._userData) {
-            return Promise.reject(new Error('Need login for get balances!'));
+            return Promise.reject(new Error('Need login to get balances!'));
         }
         const user = this._userData;
 
         return Promise.all([
-            fetchBalanceDetails(this._options.NODE_URL, user.address)
-                .then(data => ({
+            fetchBalanceDetails(this._options.NODE_URL, user.address).then(
+                (data) => ({
                     assetId: 'WAVES',
                     assetName: 'Waves',
                     decimals: 8,
@@ -136,26 +146,29 @@ export class Signer {
                     isMyAsset: false,
                     tokens: Number(data.available) * Math.pow(10, 8),
                     sponsorship: null,
-                    isSmart: false
-                })),
-            fetchAssetsBalance(this._options.NODE_URL, user.address)
-                .then((data) => data.balances.map((item) => ({
-                    assetId: item.assetId,
-                    assetName: item.issueTransaction.name,
-                    decimals: item.issueTransaction.decimals,
-                    amount: String(item.balance),
-                    isMyAsset: item.issueTransaction.sender === user.address,
-                    tokens:
-                        item.balance *
-                        Math.pow(10, item.issueTransaction.decimals),
-                    isSmart: !!item.issueTransaction.script,
-                    sponsorship:
-                        item.sponsorBalance != null &&
-                        item.sponsorBalance > Math.pow(10, 8) &&
-                        (item.minSponsoredAssetFee || 0) < item.balance
-                            ? item.minSponsoredAssetFee
-                            : null,
-                }))
+                    isSmart: false,
+                })
+            ),
+            fetchAssetsBalance(this._options.NODE_URL, user.address).then(
+                (data) =>
+                    data.balances.map((item) => ({
+                        assetId: item.assetId,
+                        assetName: item.issueTransaction.name,
+                        decimals: item.issueTransaction.decimals,
+                        amount: String(item.balance),
+                        isMyAsset:
+                            item.issueTransaction.sender === user.address,
+                        tokens:
+                            item.balance *
+                            Math.pow(10, item.issueTransaction.decimals),
+                        isSmart: !!item.issueTransaction.script,
+                        sponsorship:
+                            item.sponsorBalance != null &&
+                            item.sponsorBalance > Math.pow(10, 8) &&
+                            (item.minSponsoredAssetFee || 0) < item.balance
+                                ? item.minSponsoredAssetFee
+                                : null,
+                    }))
             ),
         ]).then(([waves, assets]) => [waves, ...assets]);
     }
@@ -167,11 +180,12 @@ export class Signer {
      * await waves.login(); // Авторизуемся. Возвращает адрес и публичный ключ
      * ```
      */
-    public login(): Promise<IUserData> {
+    public login(): Promise<UserData> {
         return this._connectPromise
             .then((provider) => provider.login())
             .then((data) => {
                 this._userData = data;
+
                 return data;
             });
     }
@@ -201,7 +215,7 @@ export class Signer {
      * Подписываем типизированные данные
      * @param data
      */
-    public signTypedData(data: Array<ITypedData>): Promise<string> {
+    public signTypedData(data: Array<TypedData>): Promise<string> {
         return this._connectPromise.then((provider) =>
             provider.signTypedData(data)
         );
@@ -210,208 +224,262 @@ export class Signer {
     /**
      * Получаем список балансов в кторых можно платить комиссию
      */
-    public getSponsoredBalances(): Promise<Array<IBalance>> {
+    public getSponsoredBalances(): Promise<Balance[]> {
         return this.getBalance().then((balance) =>
             balance.filter((item) => !!item.sponsorship)
         );
     }
 
-    public batch(
-        txOrList: TTransactionParamWithType | Array<TTransactionParamWithType>
-    ): TActionsApi<TTransactionParamWithType> {
-        const isOnce = !Array.isArray(txOrList);
-        const sign = () =>
-            this._sign(toArray(txOrList)).then((result) =>
-                isOnce ? result[0] : result
-            ) as any;
+    public batch(tsx: SignerTx[]) {
+        const sign = () => this._sign(tsx).then((result) => result);
+
         return {
             sign,
-            broadcast: (opt?: Partial<IBroadcastOptions>) =>
+            broadcast: (opt?: BroadcastOptions) =>
                 sign().then((transactions: any) =>
                     this.broadcast(transactions, opt)
                 ),
         };
     }
 
-    public issue(data: IIssue): TTransactionsApi1<IIssueWithType> {
-        return this._createPipelineAPI([addParamType('issue', data)]);
+    public issue(data: IssueArgs): ChainApi1stCall<SignerIssueTx> {
+        return this._issue([])(data);
     }
+    private readonly _issue = (txList: SignerTx[]) => (
+        data: IssueArgs
+    ): ChainApi1stCall<SignerIssueTx> => {
+        return this._createPipelineAPI<SignerIssueTx>(txList, {
+            ...data,
+            type: TRANSACTION_TYPE.ISSUE,
+        });
+    };
 
-    public transfer(data: ITransfer): TTransactionsApi1<ITransferWithType> {
-        return this._createPipelineAPI([addParamType('transfer', data)]);
+    public transfer(data: TransferArgs): ChainApi1stCall<SignerTransferTx> {
+        return this._transfer([])(data);
     }
+    private readonly _transfer = (txList: SignerTx[]) => (
+        data: TransferArgs
+    ): ChainApi1stCall<SignerTransferTx> => {
+        return this._createPipelineAPI<SignerTransferTx>(txList, {
+            ...data,
+            type: TRANSACTION_TYPE.TRANSFER,
+        });
+    };
 
-    public reissue(data: IReissue): TTransactionsApi1<IReissueWithType> {
-        return this._createPipelineAPI([addParamType('reissue', data)]);
+    public reissue(data: ReissueArgs): ChainApi1stCall<SignerReissueTx> {
+        return this._reissue([])(data);
     }
+    private readonly _reissue = (txList: SignerTx[]) => (
+        data: ReissueArgs
+    ): ChainApi1stCall<SignerReissueTx> => {
+        return this._createPipelineAPI<SignerReissueTx>(txList, {
+            ...data,
+            type: TRANSACTION_TYPE.REISSUE,
+        });
+    };
 
-    public burn(data: IBurn): TTransactionsApi1<IBurnWithType> {
-        return this._createPipelineAPI([addParamType('burn', data)]);
+    public burn(data: BurnArgs): ChainApi1stCall<SignerBurnTx> {
+        return this._burn([])(data);
     }
+    private readonly _burn = (txList: SignerTx[]) => (
+        data: BurnArgs
+    ): ChainApi1stCall<SignerBurnTx> => {
+        return this._createPipelineAPI<SignerBurnTx>(txList, {
+            ...data,
+            type: TRANSACTION_TYPE.BURN,
+        });
+    };
 
-    public lease(data: ILease): TTransactionsApi1<ILeaseWithType> {
-        return this._createPipelineAPI([addParamType('lease', data)]);
+    public lease(data: LeaseArgs): ChainApi1stCall<SignerLeaseTx> {
+        return this._lease([])(data);
     }
+    private readonly _lease = (txList: SignerTx[]) => (
+        data: LeaseArgs
+    ): ChainApi1stCall<SignerLeaseTx> => {
+        return this._createPipelineAPI<SignerLeaseTx>(txList, {
+            ...data,
+            type: TRANSACTION_TYPE.LEASE,
+        });
+    };
 
-    public exchange(data: IExchange): TTransactionsApi1<IExchangeWithType> {
-        return this._createPipelineAPI([addParamType('exchange', data)]);
+    public exchange(data: ExchangeArgs): ChainApi1stCall<SignerExchangeTx> {
+        return this._exchange([])(data);
     }
+    private readonly _exchange = (txList: SignerTx[]) => (
+        data: ExchangeArgs
+    ): ChainApi1stCall<SignerExchangeTx> => {
+        return this._createPipelineAPI<SignerExchangeTx>(txList, {
+            ...data,
+            type: TRANSACTION_TYPE.EXCHANGE,
+        });
+    };
 
     public cancelLease(
-        data: ICancelLease
-    ): TTransactionsApi1<ICancelLeaseWithType> {
-        return this._createPipelineAPI([addParamType('cancelLease', data)]);
+        data: CancelLeaseArgs
+    ): ChainApi1stCall<SignerCancelLeaseTx> {
+        return this._cancelLease([])(data);
     }
+    private readonly _cancelLease = (txList: SignerTx[]) => (
+        data: CancelLeaseArgs
+    ): ChainApi1stCall<SignerCancelLeaseTx> => {
+        return this._createPipelineAPI<SignerCancelLeaseTx>(txList, {
+            ...data,
+            type: TRANSACTION_TYPE.CANCEL_LEASE,
+        });
+    };
 
-    public alias(data: IAlias): TTransactionsApi1<IAliasWithType> {
-        return this._createPipelineAPI([addParamType('alias', data)]);
+    public alias(data: AliasArgs): ChainApi1stCall<SignerAliasTx> {
+        return this._alias([])(data);
     }
+    private readonly _alias = (txList: SignerTx[]) => (
+        data: AliasArgs
+    ): ChainApi1stCall<SignerAliasTx> => {
+        return this._createPipelineAPI<SignerAliasTx>(txList, {
+            ...data,
+            type: TRANSACTION_TYPE.ALIAS,
+        });
+    };
 
     public massTransfer(
-        data: IMassTransfer
-    ): TTransactionsApi1<IMassTransferWithType> {
-        return this._createPipelineAPI([addParamType('massTransfer', data)]);
+        data: MassTransferArgs
+    ): ChainApi1stCall<SignerMassTransferTx> {
+        return this._massTransfer([])(data);
     }
+    private readonly _massTransfer = (txList: SignerTx[]) => (
+        data: MassTransferArgs
+    ): ChainApi1stCall<SignerMassTransferTx> => {
+        return this._createPipelineAPI<SignerMassTransferTx>(txList, {
+            ...data,
+            type: TRANSACTION_TYPE.MASS_TRANSFER,
+        });
+    };
 
-    public data(data: IData): TTransactionsApi1<IDataWithType> {
-        return this._createPipelineAPI([addParamType('data', data)]);
+    public data(data: DataArgs): ChainApi1stCall<SignerDataTx> {
+        return this._data([])(data);
     }
+    private readonly _data = (txList: SignerTx[]) => (
+        data: DataArgs
+    ): ChainApi1stCall<SignerDataTx> => {
+        return this._createPipelineAPI<SignerDataTx>(txList, {
+            ...data,
+            type: TRANSACTION_TYPE.DATA,
+        });
+    };
 
     public sponsorship(
-        data: ISponsorship
-    ): TTransactionsApi1<ISponsorshipWithType> {
-        return this._createPipelineAPI([addParamType('sponsorship', data)]);
+        data: SponsorshipArgs
+    ): ChainApi1stCall<SignerSponsorshipTx> {
+        return this._sponsorship([])(data);
     }
-
-    public setScript(data: ISetScript): TTransactionsApi1<ISetScriptWithType> {
-        return this._createPipelineAPI([addParamType('setScript', data)]);
+    private readonly _sponsorship = (txList: SignerTx[]) => (
+        sponsorship: SponsorshipArgs
+    ): ChainApi1stCall<SignerSponsorshipTx> => {
+        return this._createPipelineAPI<SignerSponsorshipTx>(txList, {
+            ...sponsorship,
+            type: TRANSACTION_TYPE.SPONSORSHIP,
+        });
+    };
+    public setScript(data: SetScriptArgs): ChainApi1stCall<SignerSetScriptTx> {
+        return this._setScript([])(data);
     }
+    private readonly _setScript = (txList: SignerTx[]) => (
+        setScript: SetScriptArgs
+    ): ChainApi1stCall<SignerSetScriptTx> => {
+        return this._createPipelineAPI<SignerSetScriptTx>(txList, {
+            ...setScript,
+            type: TRANSACTION_TYPE.SET_SCRIPT,
+        });
+    };
 
     public setAssetScript(
-        data: ISetAssetScript
-    ): TTransactionsApi1<ISetAssetScriptWithType> {
-        return this._createPipelineAPI([addParamType('setAssetScript', data)]);
+        data: SetAssetScriptArgs
+    ): ChainApi1stCall<SignerSetAssetScriptTx> {
+        return this._setAssetScript([])(data);
     }
+    private readonly _setAssetScript = (txList: SignerTx[]) => (
+        data: SetAssetScriptArgs
+    ): ChainApi1stCall<SignerSetAssetScriptTx> => {
+        return this._createPipelineAPI<SignerSetAssetScriptTx>(txList, {
+            ...data,
+            type: TRANSACTION_TYPE.SET_ASSET_SCRIPT,
+        });
+    };
 
-    public invoke(data: IInvoke): TTransactionsApi1<IInvokeWithType> {
-        return this._createPipelineAPI([addParamType('invoke', data)]);
+    public invoke(data: InvokeArgs): ChainApi1stCall<SignerInvokeTx> {
+        return this._invoke([])(data);
     }
-
-    /**
-     * Оправляем подписанную транзакцию
-     * @param tx    транзакция
-     * @param opt
-     */
-    public broadcast<T extends TTransactionWithProofs<TLong>>(
-        tx: T,
-        opt?: Partial<IBroadcastOptions>
-    ): Promise<TTransactionFromAPIMap<TLong>[T['type']]>;
-    /**
-     * Отправляем массив транзакций
-     * @param list
-     * @param opt
-     */
-    public broadcast(
-        list: Array<TTransactionWithProofs<TLong>>,
-        opt?: Partial<IBroadcastOptions>
-    ): Promise<Array<TTransactionFromAPI<TLong>>>;
-    public broadcast(
-        tx: TTransactionWithProofs<TLong>,
-        opt?: Partial<IBroadcastOptions>
-    ): Promise<TTransactionFromAPI<TLong>>;
-    public broadcast(
-        list:
-            | TTransactionWithProofs<TLong>
-            | Array<TTransactionWithProofs<TLong>>,
-        opt?: Partial<IBroadcastOptions>
-    ): Promise<TTransactionFromAPI<TLong> | Array<TTransactionFromAPI<TLong>>>;
-    public broadcast(
-        tx:
-            | TTransactionWithProofs<TLong>
-            | Array<TTransactionWithProofs<TLong>>,
-        opt?: Partial<IBroadcastOptions>
-    ): Promise<TTransactionFromAPI<TLong> | Array<TTransactionFromAPI<TLong>>> {
-        return broadcast(this._options.NODE_URL, tx as any, opt); // TODO Fix types
-    }
+    private readonly _invoke = (txList: SignerTx[]) => (
+        data: InvokeArgs
+    ): ChainApi1stCall<SignerInvokeTx> => {
+        return this._createPipelineAPI<SignerInvokeTx>(txList, {
+            ...data,
+            type: TRANSACTION_TYPE.INVOKE_SCRIPT,
+        });
+    };
 
     /**
      * Ожидаем подтверждения транзакции
      * @param tx             транзакция
      * @param confirmations  количество подтверждений которое ожидаем
      */
-    public waitTxConfirm<T extends TTransactionFromAPI<TLong>>(
+    public waitTxConfirm<T extends TTransaction>(
         tx: T,
         confirmations: number
     ): Promise<T>;
-    public waitTxConfirm<T extends TTransactionFromAPI<TLong>>(
-        tx: Array<T>,
+    public waitTxConfirm<T extends TTransaction>(
+        tx: T[],
         confirmations: number
-    ): Promise<Array<T>>;
-    public waitTxConfirm<T extends TTransactionFromAPI<TLong>>(
-        tx: T | Array<T>,
+    ): Promise<T[]>;
+    public waitTxConfirm<T extends TTransaction>(
+        tx: T | T[],
         confirmations: number
-    ): Promise<T | Array<T>> {
+    ): Promise<T | T[]> {
         return wait(this._options.NODE_URL, tx as any, { confirmations }); // TODO Fix types
     }
 
-    private _createPipelineAPI(list: any): any {
-        // TODO fix types
-        const api = evolve(NAME_MAP, (key, type) => {
-            return (data: any) =>
-                this._createPipelineAPI([...list, { type: type, ...data }]);
-        });
+    private _createPipelineAPI<T extends SignerTx>(
+        prevCallTxList: SignerTx[],
+        signerTx: T
+    ): ChainApi1stCall<T> {
+        const txs = prevCallTxList.length
+            ? [...prevCallTxList, signerTx]
+            : signerTx;
+
+        const chainArgs = Array.isArray(txs) ? txs : [txs];
 
         return {
-            ...api,
-            ...this._createActions(list),
+            ...({
+                issue: this._issue(chainArgs),
+                transfer: this._transfer(chainArgs),
+                reissue: this._reissue(chainArgs),
+                burn: this._burn(chainArgs),
+                lease: this._lease(chainArgs),
+                exchange: this._exchange(chainArgs),
+                cancelLease: this._cancelLease(chainArgs),
+                alias: this._alias(chainArgs),
+                massTransfer: this._massTransfer(chainArgs),
+                data: this._data(chainArgs),
+                sponsorship: this._sponsorship(chainArgs),
+                setScript: this._setScript(chainArgs),
+                setAssetScript: this._setAssetScript(chainArgs),
+                invoke: this._invoke(chainArgs),
+            } as any),
+            sign: () => this._sign<T>(txs as any),
+            broadcast: (options?: BroadcastOptions) =>
+                this.broadcast<T>(this._sign<T>(txs as any), options),
         };
     }
 
-    private _createActions<T extends Array<TTransactionParamWithType>>(
-        list: T
-    ): TActionsApi<T> {
-        const sign = () => this._sign(list);
-        const broadcast = (
-            options?: IBroadcastOptions
-        ): Promise<TParamsToApi<T>> =>
-            sign().then(
-                (list) =>
-                    this.broadcast(list, options) as Promise<TParamsToApi<T>>
-            );
-        return { sign, broadcast };
-    }
-
-    private _sign<T extends Array<TTransactionParamWithType>>(
-        list: T
-    ): Promise<TParamsToSign<T>> {
+    private _sign<T extends SignerTx>(toSign: T): Promise<SignedTx<T>>;
+    private _sign<T extends SignerTx>(toSign: T[]): Promise<[SignedTx<T>]>;
+    private _sign<T extends SignerTx>(
+        toSign: T | T[]
+    ): Promise<SignedTx<T> | [SignedTx<T>]> {
         return this._connectPromise.then((provider) =>
-            provider.sign(list)
-        ) as any;
+            provider.sign(toSign as any)
+        ); // any fixes "Expression produces a union type that is too complex to represent"
     }
 }
 
-export interface IOptions {
-    /**
-     * Урл ноды  с которой будет работать библиотека
-     * Байт сети получаем из урла ноды (из последнего блока)
-     * @default https://nodes.wavesplatform.com
-     */
-    NODE_URL: string;
-    /**
-     * Урл матчера (временно не поддерживается)
-     */
-    // MATCHER_URL: string;
-}
-
-export interface IBroadcastOptions {
-    /**
-     * Оправлять транзакции после попадания предыдущей в блокчейн
-     */
-    chain: boolean;
-    /**
-     * Количество подтверждений после которого будет резолвится промис (для всех транзакций)
-     */
-    confirmations: number;
-}
-
+// eslint-disable-next-line import/no-default-export
 export default Signer;

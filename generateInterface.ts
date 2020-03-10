@@ -1,102 +1,161 @@
 import { writeFile } from 'fs-extra';
 import { join } from 'path';
 
-const GenericNames = ['Q', 'W', 'E', 'R', 'T', 'Y'];
-
-const compile = ({ index, params, returns, actions }: ICompileOptions) => `
-export type TTransactionsApi${index}<${params}> = {
-    issue(data: IIssue): ${returns('issue')}
-    transfer(data: ITransfer): ${returns('transfer')}
-    reissue(data: IReissue): ${returns('reissue')}
-    burn(data: IBurn): ${returns('burn')}
-    lease(data: ILease): ${returns('lease')}
-    exchange(data: IExchange): ${returns('exchange')}
-    cancelLease(data: ICancelLease): ${returns('cancelLease')}
-    alias(data: IAlias): ${returns('alias')}
-    massTransfer(data: IMassTransfer): ${returns('massTransfer')}
-    data(data: IData): ${returns('data')}
-    sponsorship(data: ISponsorship): ${returns('sponsorship')}
-    setScript(data: ISetScript): ${returns('setScript')}
-    setAssetScript(data: ISetAssetScript): ${returns('setAssetScript')}
-    invoke(data: IInvoke): ${returns('invoke')}
-} & TActionsApi<${actions}>;
-`.trim();
-
-interface ICompileOptions {
-    index: number;
-    params: string;
-    returns: (name: string) => string;
-    actions: string;
-}
-
-const generate = (generics: Array<string>) => {
-    const ext = (letter: string) => `${letter} extends TTransactionParamWithType<TLong>`;
-    const nameToType = (name: string) => `I${name.charAt(0).toUpperCase()}${name.slice(1)}WithType`;
-
-    const loop = (names: Array<string>): string => {
-        const lastReturns = names.length === generics.length ? `TTransactionsApi${generics.length + 1}<Array<TTransactionParamWithType<TLong>>>` : null;
-        const lastActions = names.length === generics.length ? 'Array<TTransactionParamWithType<TLong>>' : null;
-        const params: ICompileOptions = {
-            index: names.length,
-            params: names.map(ext).join(', '),
-            returns: name => lastReturns || `TTransactionsApi${names.length + 1}<${names.join(', ')}, ${nameToType(name)}>;`,
-            actions: lastActions || `[${names.join(', ')}]`
-
-        };
-
-        if (names.length === 1) {
-            return compile(params);
-        } else {
-            const template = loop(names.slice(0, -1));
-            return template + '\n\n' + compile(params);
-        }
-    };
-
-    return loop(generics) + '\n\n' + compile({
-        index: generics.length + 1,
-        actions: 'Array<TTransactionParamWithType>',
-        params: 'T extends Array<TTransactionParamWithType>',
-        returns: () => `TTransactionsApi${generics.length + 1}<T>`
-    });
+const config = {
+    genericNames: ['Q', 'W', 'E', 'R', 'T', 'Y'],
 };
 
-writeFile(join(__dirname, 'src/api.ts'), `
-import { 
-    TTransactionParamWithType,
-    TLong,
-    IIssue,
-    IIssueWithType,
-    ITransfer,
-    ITransferWithType,
-    IReissue,
-    IReissueWithType,
-    IBurn,
-    IBurnWithType,
-    ILease,
-    ILeaseWithType,
-    IExchange,
-    IExchangeWithType,
-    ICancelLease,
-    ICancelLeaseWithType,
-    IAlias,
-    IAliasWithType,
-    IMassTransfer,
-    IMassTransferWithType,
-    IData,
-    IDataWithType,
-    ISponsorship,
-    ISponsorshipWithType,
-    ISetScript,
-    ISetScriptWithType,
-    ISetAssetScript,
-    ISetAssetScriptWithType,
-    IInvoke,
-    IInvokeWithType,
-    TActionsApi
-} from './interface';
+const capitalize = (str: string): string =>
+    `${str.charAt(0).toUpperCase()}${str.slice(1)}`;
 
+const numToNth = (nthApiCall: number): string => {
+    return nthApiCall === 1
+        ? '1st'
+        : nthApiCall === 2
+        ? '2nd'
+        : nthApiCall === 3
+        ? '3rd'
+        : `${nthApiCall}th`;
+};
 
-${generate(GenericNames)}
-`).catch(e => {
+type HelperArgs = {
+    isFirstCall: boolean;
+    isPenultimateCall: boolean;
+    isLastCall: boolean;
+    generics: string[];
+};
+
+const generateReturnType = ({
+    isFirstCall,
+    isPenultimateCall,
+    isLastCall,
+    generics,
+}: HelperArgs) => (methodName: string): string => {
+    const signerTxType = `Signer${capitalize(methodName)}Tx`;
+
+    if (isFirstCall) {
+        // первый вызов
+        return `${generics[0]}, ${signerTxType}`;
+    } else if (isPenultimateCall) {
+        // предпоследний вызов
+        return 'SignerTx[]';
+    } else if (isLastCall) {
+        // последний вызов
+        return generics[0];
+    } else {
+        // вызовы 2..max-1
+        return `${generics.join(', ')}, ${signerTxType}`;
+    }
+};
+
+const compile = (currCall: number, max: number): string => {
+    const isLastCall = currCall === max;
+    const isFirstCall = currCall === 1;
+    const generics = config.genericNames.slice(0, currCall);
+
+    const curr = `ChainApi${numToNth(currCall)}Call`;
+    const next = isLastCall
+        ? `ChainApi${numToNth(currCall)}Call`
+        : `ChainApi${numToNth(currCall + 1)}Call`;
+
+    const params = generics
+        .slice(0, isLastCall ? 1 : currCall)
+        .map((g) => `${g} extends SignerTx${isLastCall ? '[]' : ''}`)
+        .join(', ');
+
+    let signBroadcastGenerics = generics[0];
+    const shouldWrap = !isLastCall && !isFirstCall;
+
+    if (!isLastCall) {
+        const genericsStr = generics.join(', ');
+
+        signBroadcastGenerics = shouldWrap ? `[${genericsStr}]` : genericsStr;
+    }
+
+    const returns = generateReturnType({
+        isFirstCall,
+        isLastCall,
+        isPenultimateCall: currCall === max - 1,
+        generics,
+    });
+
+    return `
+export type ${curr}<${params}> = {
+    issue(data: IssueArgs): ${next}<${returns('issue')}>;
+    transfer(data: TransferArgs): ${next}<${returns('transfer')}>;
+    reissue(data: ReissueArgs): ${next}<${returns('reissue')}>;
+    burn(data: BurnArgs): ${next}<${returns('burn')}>;
+    lease(data: LeaseArgs): ${next}<${returns('lease')}>;
+    exchange(data: ExchangeArgs): ${next}<${returns('exchange')}>;
+    cancelLease(data: CancelLeaseArgs): ${next}<${returns('cancelLease')}>;
+    alias(data: AliasArgs): ${next}<${returns('alias')}>;
+    massTransfer(data: MassTransferArgs): ${next}<${returns('massTransfer')}>;
+    data(data: DataArgs): ${next}<${returns('data')}>;
+    sponsorship(data: SponsorshipArgs): ${next}<${returns('sponsorship')}>;
+    setScript(data: SetScriptArgs): ${next}<${returns('setScript')}>;
+    setAssetScript(data: SetAssetScriptArgs): ${next}<${returns(
+        'setAssetScript'
+    )}>;
+    invoke(data: InvokeArgs): ${next}<${returns('invoke')}>;
+    sign(): Promise<SignedTx<${signBroadcastGenerics}>>;
+    broadcast(options?: BroadcastOptions): Promise<BroadcastedTx<SignedTx<${signBroadcastGenerics}>>>;
+};
+`.trim();
+};
+
+const generateApiTypes = (): string => {
+    let apiTypes = '';
+
+    const max = config.genericNames.length + 1;
+
+    for (let currCall = 1; currCall <= max; currCall += 1) {
+        apiTypes = `${apiTypes}\n${compile(currCall, max)}`;
+    }
+
+    return apiTypes;
+};
+
+writeFile(
+    join(__dirname, 'src/types/api.ts'),
+    `
+/* prettier-ignore */
+import {
+    BroadcastOptions,
+    SignerTx,
+    SignedTx,
+    BroadcastedTx,
+    SignerIssueTx,
+    SignerTransferTx,
+    SignerReissueTx,
+    SignerBurnTx,
+    SignerLeaseTx,
+    SignerExchangeTx,
+    SignerCancelLeaseTx,
+    SignerAliasTx,
+    SignerMassTransferTx,
+    SignerDataTx,
+    SignerSponsorshipTx,
+    SignerSetScriptTx,
+    SignerSetAssetScriptTx,
+    SignerInvokeTx,
+    IssueArgs,
+    TransferArgs,
+    ReissueArgs,
+    BurnArgs,
+    LeaseArgs,
+    ExchangeArgs,
+    CancelLeaseArgs,
+    AliasArgs,
+    MassTransferArgs,
+    DataArgs,
+    SponsorshipArgs,
+    SetScriptArgs,
+    SetAssetScriptArgs,
+    InvokeArgs
+} from '.';
+
+${generateApiTypes()}
+`
+).catch((e) => {
     console.error(e);
 });
