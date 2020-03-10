@@ -3,8 +3,11 @@ const REPOSITORY_URL = 'http://';
 export const ERRORS = {
     SIGNER_OPTIONS: 1000 as 1000,
     NETWORK_BYTE: 1002 as 1002,
+    NOT_AUTHORIZED: 1005 as 1005,
     PROVIDER_CONNECT: 1006 as 1006,
+    ENSURE_PROVIDER: 1007 as 1007,
     PROVIDER_INTERFACE: 1008 as 1008,
+    PROVIDER_INTERNAL: 1008 as 1008,
     API_ARGUMENTS: 1010 as 1010,
 };
 
@@ -113,6 +116,48 @@ export class SignerProviderConnectError extends SignerError {
             title: 'Could not connect the Provider',
             type: 'network',
             errorArgs: { error, node },
+        });
+
+        Object.setPrototypeOf(this, SignerProviderConnectError.prototype);
+    }
+}
+
+export class SignerEnsureProviderError extends SignerError {
+    constructor(method: string) {
+        super({
+            code: ERRORS.ENSURE_PROVIDER,
+            title: 'Provider instance is missing',
+            type: 'provider',
+            details: `Can't use method: ${method}. Provider instance is missing`,
+            errorArgs: { failedMethod: method },
+        });
+
+        Object.setPrototypeOf(this, SignerProviderConnectError.prototype);
+    }
+}
+
+export class SignerProviderInternalError extends SignerError {
+    constructor(message: string) {
+        super({
+            code: ERRORS.ENSURE_PROVIDER,
+            title: 'Provider internal error',
+            type: 'provider',
+            details: `Provider internal error: ${message}`,
+            errorArgs: { errorMessage: message },
+        });
+
+        Object.setPrototypeOf(this, SignerProviderConnectError.prototype);
+    }
+}
+
+export class SignerAuthError extends SignerError {
+    constructor(method: string) {
+        super({
+            code: ERRORS.NOT_AUTHORIZED,
+            title: 'Authorization error',
+            type: 'authorization',
+            details: `Can't use method: ${method}. User must be logged in`,
+            errorArgs: { failedMethod: method },
         });
 
         Object.setPrototypeOf(this, SignerProviderConnectError.prototype);

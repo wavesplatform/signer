@@ -13,6 +13,7 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "declaration": false,
+    "experimentalDecorators": true,
     "lib": [
       "es5",
       "dom",

@@ -40,6 +40,23 @@ export interface TypedData {
     value: string | number | boolean;
 }
 export interface Provider {
+    user: UserData | null;
+
+    on<EVENT extends keyof AuthEvents>(
+        event: EVENT,
+        handler: Handler<AuthEvents[EVENT]>
+    ): Provider;
+
+    once<EVENT extends keyof AuthEvents>(
+        event: EVENT,
+        handler: Handler<AuthEvents[EVENT]>
+    ): Provider;
+
+    off<EVENT extends keyof AuthEvents>(
+        event: EVENT,
+        handler: Handler<AuthEvents[EVENT]>
+    ): Provider;
+
     /**
      * Connect the provider to the library settings
      * @param options
@@ -293,3 +310,10 @@ export type BroadcastedTx<T> = T extends SignedTx<SignerTx>[]
     : T extends SignedTx<SignerTx>
     ? T & IWithApiMixin
     : never;
+
+export type Handler<T> = (data: T) => any;
+
+export type AuthEvents = {
+    login: UserData;
+    logout: void;
+};

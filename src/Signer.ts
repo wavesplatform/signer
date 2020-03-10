@@ -1,4 +1,3 @@
-//
 import { DEFAULT_OPTIONS } from './constants';
 import {
     TypedData,
@@ -38,6 +37,8 @@ import {
     SignerOptions,
     SignedTx,
     BroadcastedTx,
+    AuthEvents,
+    Handler,
 } from './types';
 import { IConsole, makeConsole, makeOptions } from '@waves/client-logs';
 import { fetchBalanceDetails } from '@waves/node-api-js/cjs/api-node/addresses';
@@ -58,6 +59,7 @@ import {
 } from './validation';
 import { ERRORS } from './SignerError';
 import { errorHandlerFactory } from './helpers';
+import { ensureProvider, checkAuth } from './decorators';
 
 export * from './types';
 
@@ -108,6 +110,47 @@ export class Signer {
 
             throw error;
         }
+
+        this._logger.info(
+            'Signer instance has been successfully created. Options: ',
+            options
+        );
+    }
+
+    @ensureProvider
+    public on<EVENT extends keyof AuthEvents>(
+        event: EVENT,
+        hander: Handler<AuthEvents[EVENT]>
+    ): Signer {
+        this.currentProvider!.on(event, hander);
+
+        this._logger.info(`Handler for "${event}" has been added.`);
+
+        return this;
+    }
+
+    @ensureProvider
+    public once<EVENT extends keyof AuthEvents>(
+        event: EVENT,
+        hander: Handler<AuthEvents[EVENT]>
+    ): Signer {
+        this.currentProvider!.once(event, hander);
+
+        this._logger.info(`One-Time handler for "${event}" has been added.`);
+
+        return this;
+    }
+
+    @ensureProvider
+    public off<EVENT extends keyof AuthEvents>(
+        event: EVENT,
+        hander: Handler<AuthEvents[EVENT]>
+    ): Signer {
+        this.currentProvider!.off(event, hander);
+
+        this._logger.info(`Handler for "${event}" has been removed.`);
+
+        return this;
     }
 
     public broadcast<T extends SignerTx>(
@@ -159,10 +202,14 @@ export class Signer {
 
         this.currentProvider = provider;
 
+        this._logger.info('Provider has been set.');
+
         let networkByte;
 
         try {
             networkByte = await this._networkBytePromise;
+
+            this._logger.info('Network byte has been fetched.');
         } catch ({ message }) {
             const error = this._handleError(ERRORS.NETWORK_BYTE, {
                 error: message,
@@ -178,6 +225,8 @@ export class Signer {
                     NODE_URL: this._options.NODE_URL,
                     NETWORK_BYTE: networkByte,
                 });
+
+                this._logger.info('Provider has conneced to node.');
             } catch ({ message }) {
                 const error = this._handleError(ERRORS.PROVIDER_CONNECT, {
                     error: message,
@@ -197,45 +246,45 @@ export class Signer {
      * await waves.getBalance(); // Возвращает балансы пользователя
      * ```
      */
+    @ensureProvider
+    @checkAuth
     public getBalance(): Promise<Array<Balance>> {
-        if (!this._userData) {
-            return Promise.reject(new Error('Need login to get balances!'));
-        }
-        const user = this._userData;
-
         return Promise.all([
-            fetchBalanceDetails(this._options.NODE_URL, user.address).then(
-                (data) => ({
-                    assetId: 'WAVES',
-                    assetName: 'Waves',
-                    decimals: 8,
-                    amount: String(data.available),
-                    isMyAsset: false,
-                    tokens: Number(data.available) * Math.pow(10, 8),
-                    sponsorship: null,
-                    isSmart: false,
-                })
-            ),
-            fetchAssetsBalance(this._options.NODE_URL, user.address).then(
-                (data) =>
-                    data.balances.map((item) => ({
-                        assetId: item.assetId,
-                        assetName: item.issueTransaction.name,
-                        decimals: item.issueTransaction.decimals,
-                        amount: String(item.balance),
-                        isMyAsset:
-                            item.issueTransaction.sender === user.address,
-                        tokens:
-                            item.balance *
-                            Math.pow(10, item.issueTransaction.decimals),
-                        isSmart: !!item.issueTransaction.script,
-                        sponsorship:
-                            item.sponsorBalance != null &&
-                            item.sponsorBalance > Math.pow(10, 8) &&
-                            (item.minSponsoredAssetFee || 0) < item.balance
-                                ? item.minSponsoredAssetFee
-                                : null,
-                    }))
+            fetchBalanceDetails(
+                this._options.NODE_URL,
+                this._userData.address
+            ).then((data) => ({
+                assetId: 'WAVES',
+                assetName: 'Waves',
+                decimals: 8,
+                amount: String(data.available),
+                isMyAsset: false,
+                tokens: Number(data.available) * Math.pow(10, 8),
+                sponsorship: null,
+                isSmart: false,
+            })),
+            fetchAssetsBalance(
+                this._options.NODE_URL,
+                this._userData.address
+            ).then((data) =>
+                data.balances.map((item) => ({
+                    assetId: item.assetId,
+                    assetName: item.issueTransaction.name,
+                    decimals: item.issueTransaction.decimals,
+                    amount: String(item.balance),
+                    isMyAsset:
+                        item.issueTransaction.sender === this._userData.address,
+                    tokens:
+                        item.balance *
+                        Math.pow(10, item.issueTransaction.decimals),
+                    isSmart: !!item.issueTransaction.script,
+                    sponsorship:
+                        item.sponsorBalance != null &&
+                        item.sponsorBalance > Math.pow(10, 8) &&
+                        (item.minSponsoredAssetFee || 0) < item.balance
+                            ? item.minSponsoredAssetFee
+                            : null,
+                }))
             ),
         ]).then(([waves, assets]) => [waves, ...assets]);
     }
@@ -247,25 +296,37 @@ export class Signer {
      * await waves.login(); // Авторизуемся. Возвращает адрес и публичный ключ
      * ```
      */
-    public login(): Promise<UserData> {
-        return this._connectPromise
-            .then((provider) => provider.login())
-            .then((data) => {
-                this._userData = data;
+    @ensureProvider
+    public async login(): Promise<UserData> {
+        try {
+            this._userData = await this.currentProvider!.login();
 
-                return data;
-            });
+            this._logger.info('Logged in.');
+
+            return this._userData;
+        } catch ({ message }) {
+            const error = this._handleError(ERRORS.PROVIDER_INTERNAL, message);
+
+            throw error;
+        }
     }
 
     /**
      * Вылогиниваемся из юзера
      */
-    public logout(): Promise<void> {
-        return this._connectPromise
-            .then((provider) => provider.logout())
-            .then(() => {
-                this._userData = undefined;
-            });
+    @ensureProvider
+    public async logout(): Promise<void> {
+        try {
+            await this.currentProvider!.logout();
+
+            this._userData = undefined;
+
+            this._logger.info('Logged out.');
+        } catch ({ message }) {
+            const error = this._handleError(ERRORS.PROVIDER_INTERNAL, message);
+
+            throw error;
+        }
     }
 
     /**
