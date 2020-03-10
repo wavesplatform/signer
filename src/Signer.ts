@@ -1,3 +1,4 @@
+//
 import { DEFAULT_OPTIONS } from './constants';
 import {
     TypedData,
@@ -38,6 +39,7 @@ import {
     SignedTx,
     BroadcastedTx,
 } from './types';
+import { IConsole, makeConsole, makeOptions } from '@waves/client-logs';
 import { fetchBalanceDetails } from '@waves/node-api-js/cjs/api-node/addresses';
 import { fetchAssetsBalance } from '@waves/node-api-js/cjs/api-node/assets';
 import wait from '@waves/node-api-js/cjs/tools/transactions/wait';
@@ -49,8 +51,13 @@ import {
     TTransaction,
     TTransactionType,
 } from '@waves/ts-types';
-import { validatorsMap } from './validation';
-import { SignerError } from './SignerError';
+import {
+    argsValidators,
+    validateSignerOptions,
+    validateProviderInterface,
+} from './validation';
+import { ERRORS } from './SignerError';
+import { errorHandlerFactory } from './helpers';
 
 export * from './types';
 
@@ -60,6 +67,8 @@ export class Signer {
     private __connectPromise: Promise<Provider> | undefined;
     private readonly _options: SignerOptions;
     private readonly _networkBytePromise: Promise<number>;
+    private readonly _logger: IConsole;
+    private readonly _handleError: (errorCode: number, errorArgs: any) => void;
 
     private get _connectPromise(): Promise<Provider> {
         return this.__connectPromise || Promise.reject('Has no provider!');
@@ -69,13 +78,36 @@ export class Signer {
         this.__connectPromise = promise;
     }
 
-    constructor(options?: Partial<SignerOptions>) {
-        this._options = { ...DEFAULT_OPTIONS, ...(options || {}) };
-        this._networkBytePromise = getNetworkByte(this._options.NODE_URL).then(
-            (byte) => {
-                return byte;
-            }
+    constructor(options: Partial<SignerOptions>) {
+        this._logger = makeConsole(
+            makeOptions(options.LOG_LEVEL ?? 'production', 'Signer')
         );
+
+        this._handleError = errorHandlerFactory(this._logger);
+
+        const { isValid, invalidOptions } = validateSignerOptions(options);
+
+        if (!isValid) {
+            const error = this._handleError(
+                ERRORS.SIGNER_OPTIONS,
+                invalidOptions
+            );
+
+            throw error;
+        }
+
+        this._options = { ...DEFAULT_OPTIONS, ...(options || {}) };
+
+        try {
+            this._networkBytePromise = getNetworkByte(this._options.NODE_URL);
+        } catch ({ message }) {
+            const error = this._handleError(ERRORS.NETWORK_BYTE, {
+                error: message,
+                node: this._options.NODE_URL,
+            });
+
+            throw error;
+        }
     }
 
     public broadcast<T extends SignerTx>(
@@ -113,19 +145,48 @@ export class Signer {
      * waves.setProvider(new Provider('SEED'));
      * ```
      */
-    public setProvider(provider: Provider): Promise<void> {
+    public async setProvider(provider: Provider): Promise<void> {
+        const providerValidation = validateProviderInterface(provider);
+
+        if (!providerValidation.isValid) {
+            const error = this._handleError(
+                ERRORS.PROVIDER_INTERFACE,
+                providerValidation.invalidProperties
+            );
+
+            throw error;
+        }
+
         this.currentProvider = provider;
 
-        const result = this._networkBytePromise.then((networkByte) =>
-            provider.connect({
-                NODE_URL: this._options.NODE_URL,
-                NETWORK_BYTE: networkByte,
-            })
-        );
+        let networkByte;
 
-        this._connectPromise = result.then(() => provider);
+        try {
+            networkByte = await this._networkBytePromise;
+        } catch ({ message }) {
+            const error = this._handleError(ERRORS.NETWORK_BYTE, {
+                error: message,
+                node: this._options.NODE_URL,
+            });
 
-        return result;
+            throw error;
+        }
+
+        if (networkByte) {
+            try {
+                await provider.connect({
+                    NODE_URL: this._options.NODE_URL,
+                    NETWORK_BYTE: networkByte,
+                });
+            } catch ({ message }) {
+                const error = this._handleError(ERRORS.PROVIDER_CONNECT, {
+                    error: message,
+                    node: this._options.NODE_URL,
+                });
+
+                throw error;
+            }
+        }
     }
 
     /**
@@ -483,9 +544,9 @@ export class Signer {
     ): { isValid: boolean; errors: string[] } {
         const signerTxs = Array.isArray(toSign) ? toSign : [toSign];
 
-        const validateTx = (tx: SignerTx) => validatorsMap[tx.type](tx);
+        const validateTx = (tx: SignerTx) => argsValidators[tx.type](tx);
         const knownTxPredicate = (type: TTransactionType) =>
-            Object.keys(validatorsMap).includes(String(type));
+            Object.keys(argsValidators).includes(String(type));
 
         const unknownTxs = signerTxs.filter(
             ({ type }) => !knownTxPredicate(type)
@@ -499,37 +560,6 @@ export class Signer {
         if (invalidTxs.length === 0 && unknownTxs.length === 0) {
             return { isValid: true, errors: [] };
         } else {
-            if (process.env.NODE_ENV === 'production' && !this._options.debug) {
-                console.warn(
-                    'Signer validation error. Invalid transaction(s) arguments'
-                );
-            } else {
-                invalidTxs.forEach(
-                    ({ transaction, method: scope, invalidFields }) => {
-                        console.warn(
-                            '%cValidation error for %c%s %ctransaction: %O. Ivalid arguments: %c%s',
-                            'color: red',
-                            'color: default',
-                            scope,
-                            'color:red',
-                            transaction,
-                            'color: default',
-                            invalidFields?.join(', ')
-                        );
-                    }
-                );
-
-                unknownTxs.forEach((tx) => {
-                    console.warn(
-                        '%cValidation error for transaction: %O. Unknown transaction type: %c%s',
-                        'color: red',
-                        tx,
-                        'color: default',
-                        tx.type
-                    );
-                });
-            }
-
             return {
                 isValid: false,
                 errors: [
@@ -562,7 +592,12 @@ export class Signer {
                 (provider) => provider.sign(toSign as any) // any fixes "Expression produces a union type that is too complex to
             );
         } else {
-            throw new SignerError(1010, validation.errors);
+            const error = this._handleError(
+                ERRORS.API_ARGUMENTS,
+                validation.errors
+            );
+
+            throw error;
         }
     }
 }
