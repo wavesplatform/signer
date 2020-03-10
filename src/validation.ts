@@ -28,6 +28,7 @@ import {
     isValidDataPair,
 } from './validators';
 import { TRANSACTION_TYPE, TTransactionType } from '@waves/ts-types';
+import { SignerOptions } from '.';
 
 const shouldValidate = (value: unknown): boolean =>
     typeof value !== 'undefined' ? true : false;
@@ -244,7 +245,7 @@ export const invokeArgsScheme = {
 };
 export const invokeArgsValidator = validator(invokeArgsScheme as any, 'invoke');
 
-export const validatorsMap = {
+export const argsValidators = {
     [TRANSACTION_TYPE.ISSUE]: issueArgsValidator,
     [TRANSACTION_TYPE.TRANSFER]: transferArgsValidator,
     [TRANSACTION_TYPE.REISSUE]: reissueArgsValidator,
@@ -259,4 +260,56 @@ export const validatorsMap = {
     [TRANSACTION_TYPE.EXCHANGE]: exchangeArgsValidator,
     [TRANSACTION_TYPE.SET_ASSET_SCRIPT]: setAssetScriptArgsValidator,
     [TRANSACTION_TYPE.INVOKE_SCRIPT]: invokeArgsValidator,
+};
+
+type SignerOptionsValidation = { isValid: boolean; invalidOptions: string[] };
+
+export const validateSignerOptions = (
+    options: Partial<SignerOptions>
+): SignerOptionsValidation => {
+    const res: SignerOptionsValidation = {
+        isValid: true,
+        invalidOptions: [],
+    };
+
+    const isValidLogLevel = (level: unknown) =>
+        ['verbose', 'production', 'error'].includes(String(level));
+
+    if (!isString(options.NODE_URL)) {
+        res.isValid = false;
+        res.invalidOptions.push('NODE_URL');
+    }
+
+    if (!validateOptional(isValidLogLevel)(options.LOG_LEVEL)) {
+        res.isValid = false;
+        res.invalidOptions.push('debug');
+    }
+
+    return res;
+};
+
+export const validateProviderInterface = (provider: object) => {
+    const isFunction = (value: unknown): boolean => typeof value === 'function';
+
+    const scheme = {
+        connect: isFunction,
+        login: isFunction,
+        logout: isFunction,
+        signMessage: isFunction,
+        signTypedData: isFunction,
+        sign: isFunction,
+    };
+
+    const invalidProperties: string[] = [];
+
+    for (const [fieldName, validator] of Object.entries(scheme)) {
+        if (!validator(provider[fieldName])) {
+            invalidProperties.push(fieldName);
+        }
+    }
+
+    return {
+        isValid: invalidProperties.length === 0,
+        invalidProperties,
+    };
 };

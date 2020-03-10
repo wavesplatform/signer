@@ -263,7 +263,7 @@ export interface SignerOptions {
      * Урл матчера (временно не поддерживается)
      */
     // MATCHER_URL: string;
-    debug?: boolean;
+    LOG_LEVEL: 'verbose' | 'production' | 'error';
 }
 
 export interface BroadcastOptions {
