@@ -10,7 +10,7 @@ const PATHS = {
     root: path.resolve(__dirname),
     dist: path.resolve('./dist')
 }
-console.log(path.join(PATHS.root, 'node_modules', '@waves/waves-transactions'))
+
 const commonConfig = (mode) => merge([{
     module: {
         rules: [

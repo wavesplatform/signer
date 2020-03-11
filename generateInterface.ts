@@ -116,7 +116,7 @@ const generateApiTypes = (): string => {
 };
 
 writeFile(
-    join(__dirname, 'src/types/api.ts'),
+    join(__dirname, 'src/types/api-generated.ts'),
     `
 /* prettier-ignore */
 import {

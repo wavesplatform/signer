@@ -1,15 +1,16 @@
+import prop from 'ramda/src/prop';
+import pipe from 'ramda/src/pipe';
+import gte from 'ramda/src/gte';
+import ifElse from 'ramda/src/ifElse';
+
 import {
     noop,
     isEq,
     isNumberLike,
     isNumber,
     isBoolean,
-    ifElse,
-    gte,
-    prop,
     defaultValue,
     validatePipe,
-    pipe,
     isRequired,
     orEq,
     isArray,
@@ -26,9 +27,12 @@ import {
     isValidData,
     orderValidator,
     isValidDataPair,
+    isValidUrl,
+    isValidLogLevel,
+    isFunction,
 } from './validators';
 import { TRANSACTION_TYPE, TTransactionType } from '@waves/ts-types';
-import { SignerOptions } from '.';
+import { SignerOptions, SignerTx } from '.';
 
 const shouldValidate = (value: unknown): boolean =>
     typeof value !== 'undefined' ? true : false;
@@ -49,7 +53,7 @@ type Validator = (
 };
 
 // waves-transaction validator can't collect errors for each invalid field.
-// This method does.
+// This method can.
 export const validator: Validator = (scheme, method) => (transaction) => {
     const invalidFields: string[] = [];
 
@@ -139,8 +143,7 @@ export const cancelLeaseArgsValidator = validator(
 
 export const aliasArgsScheme = {
     ...getCommonValidators(TRANSACTION_TYPE.ALIAS),
-    alias: (value: unknown) =>
-        typeof value === 'string' ? isValidAliasName(value) : false,
+    alias: ifElse(isString, isValidAliasName, defaultValue(false)),
 };
 export const aliasArgsValidator = validator(aliasArgsScheme, 'alias');
 
@@ -148,13 +151,13 @@ export const massTransferArgsScheme = {
     ...getCommonValidators(TRANSACTION_TYPE.MASS_TRANSFER),
     transfers: validatePipe(
         isArray,
-        pipe(prop('length'), gte(0)),
+        pipe(prop('length') as any, gte(0)),
         (data: Array<unknown>) =>
             data.every(
                 validatePipe(
                     isRequired(true),
-                    pipe(prop('recipient'), isRecipient),
-                    pipe(prop('amount'), isNumberLike)
+                    pipe(prop('recipient') as any, isRecipient),
+                    pipe(prop('amount') as any, isNumberLike)
                 )
             )
     ),
@@ -223,9 +226,9 @@ export const invokeArgsScheme = {
     dApp: isRecipient,
     call: validateOptional(
         validatePipe(
-            pipe(prop('function'), isString),
-            pipe(prop('function'), prop('length'), gte(0)),
-            pipe(prop('args'), isArray),
+            pipe(prop('function') as any, isString),
+            pipe(prop('function') as any, prop('length') as any, gte(0)),
+            pipe(prop('args') as any, isArray),
             (data: Array<unknown>) =>
                 data.every(validatePipe(isRequired(true), isValidDataPair))
         )
@@ -234,8 +237,8 @@ export const invokeArgsScheme = {
         validatePipe(isArray, (data: Array<unknown>) =>
             data.every(
                 validatePipe(
-                    pipe(prop('amount'), isNumberLike),
-                    pipe(prop('assetId'), isAssetId)
+                    pipe(prop('amount') as any, isNumberLike),
+                    pipe(prop('assetId') as any, isAssetId)
                 )
             )
         )
@@ -262,48 +265,66 @@ export const argsValidators = {
     [TRANSACTION_TYPE.INVOKE_SCRIPT]: invokeArgsValidator,
 };
 
-type SignerOptionsValidation = { isValid: boolean; invalidOptions: string[] };
+export function validateTxs<T>(
+    toSign: T
+): { isValid: boolean; errors: string[] };
+export function validateTxs<T>(
+    toSign: T[]
+): { isValid: boolean; errors: string[] };
+export function validateTxs<T extends SignerTx>(
+    toSign: T | T[]
+): { isValid: boolean; errors: string[] } {
+    const signerTxs = Array.isArray(toSign) ? toSign : [toSign];
 
-export const validateSignerOptions = (
-    options: Partial<SignerOptions>
-): SignerOptionsValidation => {
-    const res: SignerOptionsValidation = {
-        isValid: true,
-        invalidOptions: [],
-    };
+    const validateTx = (tx: SignerTx) => argsValidators[tx.type](tx);
+    const knownTxPredicate = (type: TTransactionType) =>
+        Object.keys(argsValidators).includes(String(type));
 
-    const isValidLogLevel = (level: unknown) =>
-        ['verbose', 'production', 'error'].includes(String(level));
+    const knownTxs = signerTxs.filter(({ type }) => knownTxPredicate(type));
+    const unknownTxs = signerTxs.filter(({ type }) => !knownTxPredicate(type));
 
-    if (!isString(options.NODE_URL)) {
-        res.isValid = false;
-        res.invalidOptions.push('NODE_URL');
+    const invalidTxs = knownTxs
+        .map(validateTx)
+        .filter(({ isValid }) => !isValid);
+
+    if (invalidTxs.length === 0 && unknownTxs.length === 0) {
+        return { isValid: true, errors: [] };
+    } else {
+        return {
+            isValid: false,
+            errors: [
+                ...invalidTxs.map(
+                    ({ transaction, method: scope, invalidFields }) =>
+                        `Validation error for ${scope} transaction: ${JSON.stringify(
+                            transaction
+                        )}. Invalid arguments: ${invalidFields?.join(', ')}`
+                ),
+                ...unknownTxs.map(
+                    (tx) =>
+                        `Validation error for transaction ${JSON.stringify(
+                            tx
+                        )}. Unknown transaction type: ${tx.type}`
+                ),
+            ],
+        };
     }
+}
 
-    if (!validateOptional(isValidLogLevel)(options.LOG_LEVEL)) {
-        res.isValid = false;
-        res.invalidOptions.push('debug');
-    }
-
-    return res;
+type SignerOptionsValidation = {
+    isValid: boolean;
+    invalidProperties: string[];
 };
 
-export const validateProviderInterface = (provider: object) => {
-    const isFunction = (value: unknown): boolean => typeof value === 'function';
-
-    const scheme = {
-        connect: isFunction,
-        login: isFunction,
-        logout: isFunction,
-        signMessage: isFunction,
-        signTypedData: isFunction,
-        sign: isFunction,
-    };
-
+const validateInterface = (
+    scheme: {
+        [key: string]: (value: unknown) => boolean;
+    },
+    i: any // interface
+) => {
     const invalidProperties: string[] = [];
 
     for (const [fieldName, validator] of Object.entries(scheme)) {
-        if (!validator(provider[fieldName])) {
+        if (!validator(i[fieldName])) {
             invalidProperties.push(fieldName);
         }
     }
@@ -312,4 +333,36 @@ export const validateProviderInterface = (provider: object) => {
         isValid: invalidProperties.length === 0,
         invalidProperties,
     };
+};
+
+export const validateSignerOptions = (
+    options: Partial<SignerOptions>
+): SignerOptionsValidation => {
+    const scheme = {
+        NODE_URL: isValidUrl,
+        MATCHER_URL: validateOptional(isValidUrl),
+        LOG_LEVEL: validatePipe(isString, isValidLogLevel),
+    };
+
+    return validateInterface(scheme, options);
+};
+
+export const validateProviderInterface = (provider: object) => {
+    const scheme = {
+        connect: isFunction,
+        login: isFunction,
+        logout: isFunction,
+        signMessage: isFunction,
+        signTypedData: isFunction,
+        sign: isFunction,
+        on: isFunction,
+        once: isFunction,
+        off: isFunction,
+        order: isFunction,
+        encryptMessage: isFunction,
+        decryptMessage: isFunction,
+        repositoryUrl: isValidUrl,
+    };
+
+    return validateInterface(scheme, provider);
 };

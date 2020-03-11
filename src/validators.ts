@@ -1,3 +1,9 @@
+import prop from 'ramda/src/prop';
+import pipe from 'ramda/src/pipe';
+import lte from 'ramda/src/lte';
+import gte from 'ramda/src/gte';
+import ifElse from 'ramda/src/ifElse';
+
 const TX_DEFAULTS = {
     MAX_ATTACHMENT: 140,
     ALIAS: {
@@ -7,12 +13,19 @@ const TX_DEFAULTS = {
     },
 };
 
+export const getByteStringLength = (s: string): number => {
+    if (window.TextDecoder) {
+        return new TextEncoder().encode(s).length;
+    } else {
+        const m = encodeURIComponent(s).match(/%[89ABab]/g);
+
+        return s.length + (m ? m.length : 0);
+    }
+};
+
 export const isArray = (value: unknown) => Array.isArray(value);
 
 export const defaultValue = (value: unknown) => () => value;
-
-export const pipe = (...args: Array<Function>) => (value: unknown) =>
-    args.reduce((acc: unknown, cb) => cb(acc), value);
 
 export const validatePipe = (...args: Array<Function>) => (value: unknown) => {
     let isValid = true;
@@ -27,17 +40,6 @@ export const validatePipe = (...args: Array<Function>) => (value: unknown) => {
     return isValid;
 };
 
-export const prop = (key: string | number) => (value: unknown) =>
-    value ? (value as any)[key] : undefined;
-
-export const lte = (ref: any) => (value: any) => ref >= value;
-
-export const gte = (ref: any) => (value: any) => ref <= value;
-
-export const ifElse = (condition: Function, a: Function, b: Function) => (
-    value: unknown
-) => (condition(value) ? a(value) : b(value));
-
 export const isRequired = (required: boolean) => (value: unknown) =>
     !required || value != null;
 
@@ -46,10 +48,14 @@ export const isString = (value: unknown) =>
 
 export const isNumber = (value: unknown) =>
     (typeof value === 'number' || value instanceof Number) &&
-    !isNaN(Number(value));
+    !isNaN(Number(value)) &&
+    Number.isInteger(Number(value));
 
 export const isNumberLike = (value: unknown) =>
-    value != null && !isNaN(Number(value)) && !!(value || value === 0);
+    value != null &&
+    !isNaN(Number(value)) &&
+    !!(value || value === 0) &&
+    Number.isInteger(Number(value));
 
 export const isBoolean = (value: unknown) =>
     value != null && (typeof value === 'boolean' || value instanceof Boolean);
@@ -94,7 +100,7 @@ export const isAttachment = ifElse(
     defaultValue(true),
     ifElse(
         isString,
-        pipe(prop('length'), lte(TX_DEFAULTS.MAX_ATTACHMENT)),
+        pipe(getByteStringLength, lte(TX_DEFAULTS.MAX_ATTACHMENT)),
         defaultValue(false)
     )
 );
@@ -139,7 +145,7 @@ export const isValidDataPair = (data: {
 export const isValidData = validatePipe(
     isRequired(true),
     pipe(
-        prop('key'),
+        prop('key') as any,
         validatePipe(isString, (key: string) => !!key)
     ),
     isValidDataPair
@@ -153,7 +159,7 @@ export const isPublicKey = validatePipe(
 export const isValidAssetName = validatePipe(
     isString,
     pipe(
-        prop('length'),
+        getByteStringLength,
         ifElse(
             gte(ASSETS.NAME_MIN_BYTES),
             lte(ASSETS.NAME_MAX_BYTES),
@@ -164,7 +170,7 @@ export const isValidAssetName = validatePipe(
 
 export const isValidAssetDescription = validatePipe(
     isString,
-    pipe(prop('length'), lte(ASSETS.DESCRIPTION_MAX_BYTES))
+    pipe(getByteStringLength, lte(ASSETS.DESCRIPTION_MAX_BYTES))
 );
 
 export const isAssetId = validatePipe(
@@ -196,8 +202,8 @@ const orderScheme = {
     version: orEq([undefined, 0, 1, 2, 3]),
     assetPair: validatePipe(
         isRequired(true),
-        pipe(prop('amountAsset'), isAssetId),
-        pipe(prop('priceAsset'), isAssetId)
+        pipe(prop('amountAsset') as any, isAssetId),
+        pipe(prop('priceAsset') as any, isAssetId)
     ),
     price: isNumberLike,
     amount: isNumberLike,
@@ -226,3 +232,21 @@ export const orderValidator = validatePipe(
     validateOrder,
     ifElse(pipe(prop('version'), isEq(3)), validateOrderV3, validateOrderV2)
 );
+
+export const isValidUrl = (value: unknown): boolean => {
+    if (typeof value !== 'string') return false;
+
+    try {
+        new URL(value);
+
+        return true;
+    } catch (error) {
+        return false;
+    }
+};
+
+export const isValidLogLevel = (value: string): boolean =>
+    ['verbose', 'production', 'error'].includes(value);
+
+export const isFunction = (value: unknown): boolean =>
+    typeof value === 'function';
