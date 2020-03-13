@@ -128,7 +128,7 @@ export interface Provider {
 
     auth(
         expirationDate: number,
-        prefix: string
+        prefix?: string
     ): Promise<OffchainSignResult<string>>;
 }
 
@@ -316,7 +316,7 @@ export interface SignerOptions {
     /**
      * Урл матчера (временно не поддерживается)
      */
-    LOG_LEVEL: 'verbose' | 'production' | 'error';
+    LOG_LEVEL?: 'verbose' | 'production' | 'error';
     MATCHER_URL?: string;
 }
 

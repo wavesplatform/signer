@@ -236,6 +236,14 @@ module.exports = {
         jest: true,
         'jest/globals': true,
       },
+      parserOptions: {
+        project: './tsconfig.test.json',
+        sourceType: 'module',
+        ecmaFeatures: {
+          jsx: true
+        },
+        warnOnUnsupportedTypeScriptVersion: true
+      },
       rules: {
         '@typescript-eslint/no-explicit-any': 'off',
         'jest/no-disabled-tests': 'warn',

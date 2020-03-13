@@ -78,8 +78,9 @@ import {
 } from './helpers';
 import {
     ensureProvider,
-    ensureAuth,
+    ensureAuthAsync,
     handleProviderInternalErrors,
+    ensureProviderAsync,
 } from './decorators';
 
 export * from './types';
@@ -88,6 +89,7 @@ export class Signer {
     public provider: Provider | undefined;
     public _handleError: (errorCode: number, errorArgs?: any) => SignerError; // private causes ts errors in decorators
     private _user: UserData | undefined;
+    private _networkByte: number | undefined;
     private readonly _options: SignerOptions;
     private readonly _networkBytePromise: Promise<number>;
     private readonly _logger: IConsole;
@@ -112,7 +114,13 @@ export class Signer {
 
         this._options = { ...DEFAULT_OPTIONS, ...(options || {}) };
 
-        this._networkBytePromise = getNetworkByte(this._options.NODE_URL);
+        this._networkBytePromise = getNetworkByte(this._options.NODE_URL).then(
+            (networkByte) => {
+                this._networkByte = networkByte;
+
+                return networkByte;
+            }
+        );
 
         this._logger.info(
             `Signer instance has been successfully created using options: ${JSON.stringify(
@@ -193,8 +201,12 @@ export class Signer {
     /**
      * Запросить байт сети
      */
-    public getNetworkByte(): Promise<number> {
-        return this._networkBytePromise;
+    public async getNetworkByte(): Promise<number> {
+        if (this._networkByte) {
+            return this._networkByte;
+        } else {
+            return this._networkBytePromise;
+        }
     }
 
     /**
@@ -228,7 +240,7 @@ export class Signer {
         let networkByte;
 
         try {
-            networkByte = await this._networkBytePromise;
+            networkByte = await this.getNetworkByte();
 
             this._logger.info('Network byte has been fetched.');
         } catch ({ message }) {
@@ -259,17 +271,18 @@ export class Signer {
         }
     }
 
-    @ensureProvider
+    @ensureProviderAsync
     @handleProviderInternalErrors
-    public auth(
-        expirationDate: Date | number
+    public async auth(
+        expirationDate: Date | number,
+        hostName = location.hostname
     ): Promise<OffchainSignResult<string>> {
         const expiration =
             expirationDate instanceof Date
                 ? expirationDate.getTime()
                 : expirationDate;
 
-        return this.provider!.auth(expiration, location.hostname);
+        return this.provider!.auth(expiration, hostName);
     }
 
     /**
@@ -280,7 +293,7 @@ export class Signer {
      * await waves.getBalance(); // Возвращает балансы пользователя
      * ```
      */
-    @ensureAuth
+    @ensureAuthAsync
     public getBalances(): Promise<Balance[]> {
         const userAddress = this._user!.address;
 
@@ -311,7 +324,7 @@ export class Signer {
      * await waves.login(); // Авторизуемся. Возвращает адрес и публичный ключ
      * ```
      */
-    @ensureProvider
+    @ensureProviderAsync
     @handleProviderInternalErrors
     public async login(): Promise<UserData> {
         this._user = await this.provider!.login();
@@ -324,7 +337,7 @@ export class Signer {
     /**
      * Вылогиниваемся из юзера
      */
-    @ensureProvider
+    @ensureProviderAsync
     @handleProviderInternalErrors
     public async logout(): Promise<void> {
         await this.provider!.logout();
@@ -338,7 +351,7 @@ export class Signer {
      * Подписываем сообщение пользователя (провайдер может устанавливать префикс)
      * @param message
      */
-    @ensureProvider
+    @ensureProviderAsync
     @handleProviderInternalErrors
     public async signMessage(message: string | number): Promise<string> {
         const signedMessage = await this.provider!.signMessage(message);
@@ -352,7 +365,7 @@ export class Signer {
      * Подписываем типизированные данные
      * @param data
      */
-    @ensureProvider
+    @ensureProviderAsync
     @handleProviderInternalErrors
     public async signTypedData(data: Array<TypedData>): Promise<string> {
         const signedData = await this.provider!.signTypedData(data);
@@ -365,9 +378,9 @@ export class Signer {
     /**
      * Получаем список балансов в кторых можно платить комиссию
      */
-    public getSponsoredBalances(): Promise<Balance[]> {
-        return this.getBalances().then((balance) =>
-            balance.filter((item) => !!item.sponsorship)
+    public async getSponsoredBalances(): Promise<Balance[]> {
+        return this.getBalances().then((balances) =>
+            balances.filter((item) => Boolean(item.sponsorship))
         );
     }
 
@@ -392,36 +405,62 @@ export class Signer {
         };
     }
 
-    @ensureProvider
+    @ensureProviderAsync
     @handleProviderInternalErrors
-    private _signOrder(
+    private async _signOrder(
         order: Order
     ): Promise<TSignedTransaction<TExchangeTransaction>> {
-        return this.provider!.order(order);
+        const signedOrder = await this.provider!.order(order);
+
+        this._logger.info(
+            `Order has been signed: ${JSON.stringify(signedOrder)}`
+        );
+
+        return signedOrder;
     }
 
-    @ensureProvider
+    @ensureProviderAsync
     @handleProviderInternalErrors
     public encryptMessage(
         sharedKey: string,
         message: string,
         prefix?: string
     ): Promise<string> {
-        return this.provider!.decryptMessage(sharedKey, message, prefix);
+        const encryptedMessage = this.provider!.encryptMessage(
+            sharedKey,
+            message,
+            prefix
+        );
+
+        this._logger.info(
+            `Message has been encrypted: ${JSON.stringify(encryptedMessage)}`
+        );
+
+        return encryptedMessage;
     }
 
-    @ensureProvider
+    @ensureProviderAsync
     @handleProviderInternalErrors
     public decryptMessage(
         sharedKey: string,
         message: string,
         prefix?: string
     ): Promise<string> {
-        return this.provider!.decryptMessage(sharedKey, message, prefix);
+        const decryptedMessage = this.provider!.decryptMessage(
+            sharedKey,
+            message,
+            prefix
+        );
+
+        this._logger.info(
+            `Message has been decrypted: ${JSON.stringify(decryptedMessage)}`
+        );
+
+        return decryptedMessage;
     }
 
     public batch(tsx: SignerTx[]) {
-        const sign = () => this._sign(tsx).then((result) => result);
+        const sign = () => this._sign(tsx);
 
         return {
             sign,
@@ -626,7 +665,9 @@ export class Signer {
         confirmations: number
     ): Promise<T | T[]> {
         try {
-            return wait(this._options.NODE_URL, tx as any, { confirmations }); // TODO Fix types
+            return await wait(this._options.NODE_URL, tx as any, {
+                confirmations,
+            }); // TODO Fix types
         } catch ({ message }) {
             const error = this._handleError(ERRORS.WAIT_CONFIRMATION);
 
@@ -638,9 +679,10 @@ export class Signer {
         prevCallTxList: SignerTx[],
         signerTx: T
     ): ChainApi1stCall<T> {
-        const txs = prevCallTxList.length
-            ? [...prevCallTxList, signerTx]
-            : signerTx;
+        const txs =
+            prevCallTxList.length > 0
+                ? [...prevCallTxList, signerTx]
+                : signerTx;
 
         const chainArgs = Array.isArray(txs) ? txs : [txs];
 
@@ -661,11 +703,11 @@ export class Signer {
                 setAssetScript: this._setAssetScript(chainArgs),
                 invoke: this._invoke(chainArgs),
             } as any),
-            sign: () => this._sign<T>(txs as any),
+            sign: async () => this._sign<T>(txs as any),
             broadcast: async (options?: BroadcastOptions) => {
                 const signedTxs = await this._sign<T>(txs as any);
 
-                return this.broadcast<T>(signedTxs, options);
+                return await this.broadcast<T>(signedTxs, options);
             },
         };
     }
@@ -674,7 +716,7 @@ export class Signer {
     private async _sign<T extends SignerTx>(
         toSign: T[]
     ): Promise<[SignedTx<T>]>;
-    @ensureProvider
+    @ensureProviderAsync
     @handleProviderInternalErrors
     private async _sign<T extends SignerTx>(
         toSign: T | T[]

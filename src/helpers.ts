@@ -13,6 +13,7 @@ import {
     SignerProviderInternalError,
     SignerOrderError,
     SignerWaitConfirmationError,
+    SignerBroadcastError,
 } from './SignerError';
 import { IConsole } from '@waves/client-logs';
 import { TLong } from '@waves/ts-types';
@@ -27,6 +28,7 @@ const errorsMap = {
     [ERRORS.MATCHER_URL]: SignerMissingMatcherUrlError,
     [ERRORS.NETWORK_BYTE]: SignerNetworkByteError,
     [ERRORS.BALANCE]: SignerBalanceError,
+    [ERRORS.BROADCAST]: SignerBroadcastError,
     [ERRORS.NOT_AUTHORIZED]: SignerAuthError,
     [ERRORS.PROVIDER_CONNECT]: SignerProviderConnectError,
     [ERRORS.ENSURE_PROVIDER]: SignerEnsureProviderError,
