@@ -341,7 +341,7 @@ export const validateSignerOptions = (
     const scheme = {
         NODE_URL: isValidUrl,
         MATCHER_URL: validateOptional(isValidUrl),
-        LOG_LEVEL: validatePipe(isString, isValidLogLevel),
+        LOG_LEVEL: validateOptional(validatePipe(isString, isValidLogLevel)),
     };
 
     return validateInterface(scheme, options);

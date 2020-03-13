@@ -27,31 +27,14 @@
     "build:cjs": "shx rm -rf dist/cjs && tsc -p tsconfig.build.json -m commonjs --outDir dist/cjs",
     "build:es": "shx rm -rf dist/es && tsc -p tsconfig.build.json -m es6 --outDir dist/es",
     "build": "shx rm -rf dist && run-p build:* bundle:*",
-    "test": "node-state -n -m typescript -o ./test/_state.ts -r",
+    "test": "jest",
+    "test:c": "jest --coverage",
+    "test:d": "node --inspect-brk ./node_modules/jest/bin/jest.js --runInBand --watch",
+    "test:w": "jest --watch",
     "prettier": "prettier \"./src/**/*.+(js|jsx|ts|tsx)\"",
     "format": "npm run prettier -- --write",
     "check-format": "npm run prettier -- --list-different",
     "check-types": "tsc --noEmit"
-  },
-  "jest": {
-    "collectCoverage": true,
-    "coveragePathIgnorePatterns": [
-      "/node_modules/",
-      "/test/",
-      "/src/libs/"
-    ],
-    "moduleFileExtensions": [
-      "ts",
-      "tsx",
-      "js"
-    ],
-    "transform": {
-      "^.+\\.(ts|tsx)$": "ts-jest"
-    },
-    "testMatch": [
-      "**/test/*spec.+(ts)",
-      "**/test/**/*spec.+(ts)"
-    ]
   },
   "dependencies": {
     "@waves/client-logs": "^1.0.0",

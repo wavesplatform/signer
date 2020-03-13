@@ -1,5 +1,5 @@
 import Signer from './Signer';
-import { ERRORS } from './SignerError';
+import { ERRORS, SignerError } from './SignerError';
 
 export const ensureProvider = (
     target: Signer,
@@ -24,6 +24,32 @@ export const ensureProvider = (
     };
 };
 
+export const ensureProviderAsync = (
+    target: Signer,
+    propertyKey: string,
+    descriptor: PropertyDescriptor
+) => {
+    const origin = descriptor.value;
+
+    descriptor.value = async function(
+        this: Signer,
+        ...args: Array<any>
+    ): Promise<any> {
+        const provider = this.provider;
+
+        if (!provider) {
+            const error = this._handleError(
+                ERRORS.ENSURE_PROVIDER,
+                propertyKey
+            );
+
+            throw error;
+        }
+
+        return await origin.apply(this, args);
+    };
+};
+
 export const handleProviderInternalErrors = (
     target: Signer,
     propertyKey: string,
@@ -37,28 +63,40 @@ export const handleProviderInternalErrors = (
     ): Promise<any> {
         try {
             return await origin.apply(this, args);
-        } catch ({ message }) {
-            const error = this._handleError(ERRORS.PROVIDER_INTERNAL, message);
+        } catch (err) {
+            if (err instanceof SignerError) {
+                throw err;
+            }
+
+            const error = this._handleError(
+                ERRORS.PROVIDER_INTERNAL,
+                err.message
+            );
 
             throw error;
         }
     };
 };
 
-export const ensureAuth = (
+export const ensureAuthAsync = (
     target: Signer,
     propertyKey: string,
     descriptor: PropertyDescriptor
 ) => {
     const origin = descriptor.value;
 
-    descriptor.value = function(this: Signer, ...args: Array<any>): any {
-        if (this.provider!.user == null) {
+    descriptor.value = async function(
+        this: Signer,
+        ...args: Array<any>
+    ): Promise<any> {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+        // @ts-ignore
+        if (this._user == null) {
             const error = this._handleError(ERRORS.NOT_AUTHORIZED, propertyKey);
 
             throw error;
         }
 
-        return origin.apply(this, args);
+        return await origin.apply(this, args);
     };
 };
