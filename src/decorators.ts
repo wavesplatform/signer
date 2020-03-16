@@ -1,8 +1,12 @@
-import Signer from './Signer';
-import { ERRORS } from './SignerError';
+import OriginalSigner from './Signer';
+import { ERRORS, SignerError } from './SignerError';
+
+type Signer = { [Key in keyof OriginalSigner]: OriginalSigner[Key] } & {
+    _handleError(errorCode: number, errorArgs?: any): SignerError;
+};
 
 export const ensureProvider = (
-    target: Signer,
+    target: OriginalSigner,
     propertyKey: string,
     descriptor: PropertyDescriptor
 ) => {

@@ -86,8 +86,11 @@ export * from './types';
 
 export class Signer {
     public provider: Provider | undefined;
-    public _handleError: (errorCode: number, errorArgs?: any) => SignerError; // private causes ts errors in decorators
     private _user: UserData | undefined;
+    private readonly _handleError: (
+        errorCode: number,
+        errorArgs?: any
+    ) => SignerError; // private causes ts errors in decorators
     private readonly _options: SignerOptions;
     private readonly _networkBytePromise: Promise<number>;
     private readonly _logger: IConsole;
