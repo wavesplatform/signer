@@ -55,19 +55,22 @@ type Validator = (
 // waves-transaction validator can't collect errors for each invalid field.
 // This method can.
 export const validator: Validator = (scheme, method) => (transaction) => {
-    const invalidFields: string[] = [];
+    const invalidFields: string[] = Object.entries(scheme).reduce<string[]>(
+        (acc, [fieldName, validationScheme]) => {
+            try {
+                validateBySheme(
+                    { [fieldName]: validationScheme },
+                    // eslint-disable-next-line @typescript-eslint/no-empty-function
+                    noop as any
+                )(transaction);
+            } catch (error) {
+                invalidFields.push(fieldName);
+            }
 
-    for (const [fieldName, validationScheme] of Object.entries(scheme)) {
-        try {
-            validateBySheme(
-                { [fieldName]: validationScheme },
-                // eslint-disable-next-line @typescript-eslint/no-empty-function
-                noop as any
-            )(transaction);
-        } catch (error) {
-            invalidFields.push(fieldName);
-        }
-    }
+            return invalidFields;
+        },
+        []
+    );
 
     return {
         isValid: invalidFields.length === 0,
@@ -321,13 +324,9 @@ const validateInterface = (
     },
     i: any // interface
 ) => {
-    const invalidProperties: string[] = [];
-
-    for (const [fieldName, validator] of Object.entries(scheme)) {
-        if (!validator(i[fieldName])) {
-            invalidProperties.push(fieldName);
-        }
-    }
+    const invalidProperties: string[] = Object.entries(scheme)
+        .filter(([fieldName, validator]) => !validator(i[fieldName]))
+        .map(([fieldName]) => fieldName);
 
     return {
         isValid: invalidProperties.length === 0,
