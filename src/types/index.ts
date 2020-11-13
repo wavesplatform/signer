@@ -23,6 +23,7 @@ import {
     TSignedTransaction,
     IWithApiMixin,
     TTransactionMap,
+    TExchangeTransaction,
 } from '@waves/ts-types';
 
 export interface TypedData {
@@ -39,7 +40,54 @@ export interface TypedData {
      */
     value: string | number | boolean;
 }
+
+export interface Order<LONG = TLong> {
+    matcherPublicKey: string;
+    price: LONG;
+    amount: LONG;
+    orderType: 'buy' | 'sell';
+    amountAsset: string | null;
+    priceAsset: string | null;
+    senderPublicKey?: string;
+    matcherFee?: number;
+    timestamp?: number;
+    expiration?: number;
+    matcherFeeAssetId?: string | null;
+}
+
 export interface Provider {
+    user: UserData | null;
+    repositoryUrl: string;
+
+    on<EVENT extends keyof AuthEvents>(
+        event: EVENT,
+        handler: Handler<AuthEvents[EVENT]>
+    ): Provider;
+
+    once<EVENT extends keyof AuthEvents>(
+        event: EVENT,
+        handler: Handler<AuthEvents[EVENT]>
+    ): Provider;
+
+    off<EVENT extends keyof AuthEvents>(
+        event: EVENT,
+        handler: Handler<AuthEvents[EVENT]>
+    ): Provider;
+
+    order(data: Order): Promise<TSignedTransaction<TExchangeTransaction>>;
+
+    encryptMessage(
+        sharedKey: string,
+        message: string,
+        prefix?: string
+    ): Promise<string>;
+
+    decryptMessage(
+        sharedKey: string,
+        message: string,
+        prefix?: string
+    ): Promise<string>;
+
     /**
      * Connect the provider to the library settings
      * @param options
@@ -77,6 +125,11 @@ export interface Provider {
     sign<T extends SignerTx>(
         toSign: T | T[]
     ): Promise<SignedTx<T> | [SignedTx<T>]>;
+
+    auth(
+        expirationDate: number,
+        prefix: string
+    ): Promise<OffchainSignResult<string>>;
 }
 
 export interface UserData {
@@ -99,6 +152,7 @@ export interface ConnectOptions {
      * Network byte
      */
     NETWORK_BYTE: number;
+    MATHCER_URL?: string;
 }
 
 type CommonArgs = Partial<Pick<ITransaction, 'fee' | 'senderPublicKey'>> & {
@@ -138,7 +192,8 @@ export type SponsorshipArgs = CommonArgs & ISponsorshipTransactionFields;
 
 export type ExchangeArgs = CommonArgs & IExchangeTransactionFields;
 
-export type SetAssetScriptArgs = CommonArgs & ISetAssetScriptTransactionFields;
+export type SetAssetScriptArgs = CommonArgs &
+    MakeOptional<ISetAssetScriptTransactionFields, 'chainId'>;
 
 export type InvokeArgs = CommonArgs &
     MakeOptional<
@@ -261,7 +316,8 @@ export interface SignerOptions {
     /**
      * Урл матчера (временно не поддерживается)
      */
-    // MATCHER_URL: string;
+    LOG_LEVEL: 'verbose' | 'production' | 'error';
+    MATCHER_URL?: string;
 }
 
 export interface BroadcastOptions {
@@ -291,3 +347,24 @@ export type BroadcastedTx<T> = T extends SignedTx<SignerTx>[]
     : T extends SignedTx<SignerTx>
     ? T & IWithApiMixin
     : never;
+
+export type Handler<T> = (data: T) => any;
+
+export type AuthEvents = {
+    login: UserData;
+    logout: void;
+};
+
+export type SignedOrder = TSignedTransaction<TExchangeTransaction>;
+
+export type OrderApi = {
+    sign(): Promise<SignedOrder>;
+    limit(): Promise<any>;
+    market(): Promise<any>;
+};
+
+export type OffchainSignResult<T> = {
+    signedData: T;
+    bytes: Array<number>;
+    signature: string;
+};

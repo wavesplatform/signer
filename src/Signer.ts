@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/member-ordering */
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { DEFAULT_OPTIONS } from './constants';
 import {
     TypedData,
@@ -37,55 +39,158 @@ import {
     SignerOptions,
     SignedTx,
     BroadcastedTx,
+    AuthEvents,
+    Handler,
+    Order,
+    OrderApi,
+    OffchainSignResult,
 } from './types';
+import {
+    IConsole,
+    makeConsole,
+    makeOptions,
+    IGetMessageOptions,
+    IMessage,
+} from '@waves/client-logs';
 import { fetchBalanceDetails } from '@waves/node-api-js/cjs/api-node/addresses';
 import { fetchAssetsBalance } from '@waves/node-api-js/cjs/api-node/assets';
 import wait from '@waves/node-api-js/cjs/tools/transactions/wait';
 import broadcast from '@waves/node-api-js/cjs/tools/transactions/broadcast';
 import getNetworkByte from '@waves/node-api-js/cjs/tools/blocks/getNetworkByte';
-import { ChainApi1stCall } from './types/api';
-import { TRANSACTION_TYPE, TTransaction } from '@waves/ts-types';
+import { ChainApi1stCall } from './types/api-generated';
+import {
+    TRANSACTION_TYPE,
+    TTransaction,
+    TExchangeTransaction,
+    TSignedTransaction,
+} from '@waves/ts-types';
+import {
+    validateSignerOptions,
+    validateProviderInterface,
+    validateTxs,
+} from './validation';
+import { ERRORS, SignerError } from './SignerError';
+import {
+    errorHandlerFactory,
+    normalizeBalanceDetails,
+    normalizeAssetsBalance,
+    orderRequestFactory,
+} from './helpers';
+import {
+    ensureProvider,
+    ensureAuth,
+    handleProviderInternalErrors,
+} from './decorators';
 
 export * from './types';
 
 export class Signer {
-    public currentProvider: Provider | undefined;
-    private _userData: UserData | undefined;
-    private __connectPromise: Promise<Provider> | undefined;
+    public provider: Provider | undefined;
+    private _user: UserData | undefined;
+    private readonly _handleError: (
+        errorCode: number,
+        errorArgs?: any
+    ) => SignerError; // private causes ts errors in decorators
     private readonly _options: SignerOptions;
     private readonly _networkBytePromise: Promise<number>;
+    private readonly _logger: IConsole;
 
-    private get _connectPromise(): Promise<Provider> {
-        return this.__connectPromise || Promise.reject('Has no provider!');
-    }
+    constructor(options: Partial<SignerOptions>) {
+        this._logger = makeConsole(
+            makeOptions(options.LOG_LEVEL ?? 'production', 'Signer')
+        );
 
-    private set _connectPromise(promise: Promise<Provider>) {
-        this.__connectPromise = promise;
-    }
+        this._handleError = errorHandlerFactory(this._logger);
 
-    constructor(options?: Partial<SignerOptions>) {
+        const { isValid, invalidProperties } = validateSignerOptions(options);
+
+        if (!isValid) {
+            const error = this._handleError(
+                ERRORS.SIGNER_OPTIONS,
+                invalidProperties
+            );
+
+            throw error;
+        }
+
         this._options = { ...DEFAULT_OPTIONS, ...(options || {}) };
-        this._networkBytePromise = getNetworkByte(this._options.NODE_URL).then(
-            (byte) => {
-                return byte;
-            }
+
+        this._networkBytePromise = getNetworkByte(this._options.NODE_URL);
+
+        this._logger.info(
+            `Signer instance has been successfully created using options: ${JSON.stringify(
+                options
+            )}`
         );
     }
 
-    public broadcast<T extends SignerTx>(
-        toBroadcast: Promise<SignedTx<T>>,
+    @ensureProvider
+    public on<EVENT extends keyof AuthEvents>(
+        event: EVENT,
+        hander: Handler<AuthEvents[EVENT]>
+    ): Signer {
+        this.provider!.on(event, hander);
+
+        this._logger.info(`Handler for "${event}" event has been added.`);
+
+        return this;
+    }
+
+    @ensureProvider
+    public once<EVENT extends keyof AuthEvents>(
+        event: EVENT,
+        hander: Handler<AuthEvents[EVENT]>
+    ): Signer {
+        this.provider!.once(event, hander);
+
+        this._logger.info(
+            `One-Time handler for "${event}" event has been added.`
+        );
+
+        return this;
+    }
+
+    @ensureProvider
+    public off<EVENT extends keyof AuthEvents>(
+        event: EVENT,
+        hander: Handler<AuthEvents[EVENT]>
+    ): Signer {
+        this.provider!.off(event, hander);
+
+        this._logger.info(`Handler for "${event}" event has been removed.`);
+
+        return this;
+    }
+
+    public getMessages(options?: IGetMessageOptions): Array<IMessage> {
+        return this._logger.getMessages(options);
+    }
+
+    public async broadcast<T extends SignerTx>(
+        toBroadcast: SignedTx<T>,
         options?: BroadcastOptions
     ): Promise<BroadcastedTx<SignedTx<T>>>;
-    public broadcast<T extends SignerTx>(
-        toBroadcast: Promise<SignedTx<T> | [SignedTx<T>]>,
+    public async broadcast<T extends SignerTx>(
+        toBroadcast: SignedTx<T> | [SignedTx<T>],
         options?: BroadcastOptions
     ): Promise<BroadcastedTx<SignedTx<T>> | BroadcastedTx<[SignedTx<T>]>> {
-        return toBroadcast.then((res: any) => {
-            // any fixes "Expression produces a union type that is too complex to represent"
-            return broadcast(this._options.NODE_URL, res as any, options); // TODO поправить тип в broadcast
-        }) as Promise<
-            BroadcastedTx<SignedTx<T>> | BroadcastedTx<[SignedTx<T>]>
-        >;
+        try {
+            const txs = (await broadcast(
+                this._options.NODE_URL,
+                toBroadcast as any, // TODO поправить тип в broadcast
+                options
+            )) as Promise<
+                BroadcastedTx<SignedTx<T>> | BroadcastedTx<[SignedTx<T>]>
+            >;
+
+            this._logger.info('Transactions have been broadcasted.');
+
+            return txs;
+        } catch ({ message }) {
+            const error = this._handleError(ERRORS.BROADCAST, message);
+
+            throw error;
+        }
     }
 
     /**
@@ -107,19 +212,67 @@ export class Signer {
      * waves.setProvider(new Provider('SEED'));
      * ```
      */
-    public setProvider(provider: Provider): Promise<void> {
-        this.currentProvider = provider;
+    public async setProvider(provider: Provider): Promise<void> {
+        const providerValidation = validateProviderInterface(provider);
 
-        const result = this._networkBytePromise.then((networkByte) =>
-            provider.connect({
-                NODE_URL: this._options.NODE_URL,
-                NETWORK_BYTE: networkByte,
-            })
-        );
+        if (!providerValidation.isValid) {
+            const error = this._handleError(
+                ERRORS.PROVIDER_INTERFACE,
+                providerValidation.invalidProperties
+            );
 
-        this._connectPromise = result.then(() => provider);
+            throw error;
+        }
 
-        return result;
+        this.provider = provider;
+
+        this._logger.info('Provider has been set.');
+
+        let networkByte;
+
+        try {
+            networkByte = await this._networkBytePromise;
+
+            this._logger.info('Network byte has been fetched.');
+        } catch ({ message }) {
+            const error = this._handleError(ERRORS.NETWORK_BYTE, {
+                error: message,
+                node: this._options.NODE_URL,
+            });
+
+            throw error;
+        }
+
+        if (networkByte) {
+            try {
+                await provider.connect({
+                    NODE_URL: this._options.NODE_URL,
+                    NETWORK_BYTE: networkByte,
+                });
+
+                this._logger.info('Provider has conneced to node.');
+            } catch ({ message }) {
+                const error = this._handleError(ERRORS.PROVIDER_CONNECT, {
+                    error: message,
+                    node: this._options.NODE_URL,
+                });
+
+                throw error;
+            }
+        }
+    }
+
+    @ensureProvider
+    @handleProviderInternalErrors
+    public auth(
+        expirationDate: Date | number
+    ): Promise<OffchainSignResult<string>> {
+        const expiration =
+            expirationDate instanceof Date
+                ? expirationDate.getTime()
+                : expirationDate;
+
+        return this.provider!.auth(expiration, location.hostname);
     }
 
     /**
@@ -130,47 +283,28 @@ export class Signer {
      * await waves.getBalance(); // Возвращает балансы пользователя
      * ```
      */
-    public getBalance(): Promise<Array<Balance>> {
-        if (!this._userData) {
-            return Promise.reject(new Error('Need login to get balances!'));
-        }
-        const user = this._userData;
+    @ensureAuth
+    public getBalances(): Promise<Balance[]> {
+        const userAddress = this._user!.address;
 
         return Promise.all([
-            fetchBalanceDetails(this._options.NODE_URL, user.address).then(
-                (data) => ({
-                    assetId: 'WAVES',
-                    assetName: 'Waves',
-                    decimals: 8,
-                    amount: String(data.available),
-                    isMyAsset: false,
-                    tokens: Number(data.available) * Math.pow(10, 8),
-                    sponsorship: null,
-                    isSmart: false,
-                })
+            fetchBalanceDetails(this._options.NODE_URL, userAddress).then(
+                normalizeBalanceDetails
             ),
-            fetchAssetsBalance(this._options.NODE_URL, user.address).then(
-                (data) =>
-                    data.balances.map((item) => ({
-                        assetId: item.assetId,
-                        assetName: item.issueTransaction.name,
-                        decimals: item.issueTransaction.decimals,
-                        amount: String(item.balance),
-                        isMyAsset:
-                            item.issueTransaction.sender === user.address,
-                        tokens:
-                            item.balance *
-                            Math.pow(10, item.issueTransaction.decimals),
-                        isSmart: !!item.issueTransaction.script,
-                        sponsorship:
-                            item.sponsorBalance != null &&
-                            item.sponsorBalance > Math.pow(10, 8) &&
-                            (item.minSponsoredAssetFee || 0) < item.balance
-                                ? item.minSponsoredAssetFee
-                                : null,
-                    }))
+            fetchAssetsBalance(this._options.NODE_URL, userAddress).then(
+                normalizeAssetsBalance(userAddress)
             ),
-        ]).then(([waves, assets]) => [waves, ...assets]);
+        ])
+            .then(([wavesBalance, assetsBalance]) => {
+                this._logger.info('User balances have been fetched.');
+
+                return [wavesBalance, ...assetsBalance];
+            })
+            .catch(({ message }) => {
+                const error = this._handleError(ERRORS.BALANCE, message);
+
+                throw error;
+            });
     }
 
     /**
@@ -180,54 +314,113 @@ export class Signer {
      * await waves.login(); // Авторизуемся. Возвращает адрес и публичный ключ
      * ```
      */
-    public login(): Promise<UserData> {
-        return this._connectPromise
-            .then((provider) => provider.login())
-            .then((data) => {
-                this._userData = data;
+    @ensureProvider
+    @handleProviderInternalErrors
+    public async login(): Promise<UserData> {
+        this._user = await this.provider!.login();
 
-                return data;
-            });
+        this._logger.info('Logged in.');
+
+        return this._user;
     }
 
     /**
      * Вылогиниваемся из юзера
      */
-    public logout(): Promise<void> {
-        return this._connectPromise
-            .then((provider) => provider.logout())
-            .then(() => {
-                this._userData = undefined;
-            });
+    @ensureProvider
+    @handleProviderInternalErrors
+    public async logout(): Promise<void> {
+        await this.provider!.logout();
+
+        this._user = undefined;
+
+        this._logger.info('Logged out.');
     }
 
     /**
      * Подписываем сообщение пользователя (провайдер может устанавливать префикс)
      * @param message
      */
-    public signMessage(message: string | number): Promise<string> {
-        return this._connectPromise.then((provider) =>
-            provider.signMessage(message)
-        );
+    @ensureProvider
+    @handleProviderInternalErrors
+    public async signMessage(message: string | number): Promise<string> {
+        const signedMessage = await this.provider!.signMessage(message);
+
+        this._logger.info(`Message has been signed: ${message}`);
+
+        return signedMessage;
     }
 
     /**
      * Подписываем типизированные данные
      * @param data
      */
-    public signTypedData(data: Array<TypedData>): Promise<string> {
-        return this._connectPromise.then((provider) =>
-            provider.signTypedData(data)
-        );
+    @ensureProvider
+    @handleProviderInternalErrors
+    public async signTypedData(data: Array<TypedData>): Promise<string> {
+        const signedData = await this.provider!.signTypedData(data);
+
+        this._logger.info(`Data has been signed: ${JSON.stringify(data)}`);
+
+        return signedData;
     }
 
     /**
      * Получаем список балансов в кторых можно платить комиссию
      */
     public getSponsoredBalances(): Promise<Balance[]> {
-        return this.getBalance().then((balance) =>
+        return this.getBalances().then((balance) =>
             balance.filter((item) => !!item.sponsorship)
         );
+    }
+
+    public order(data: Order): OrderApi {
+        if (!this._options.MATCHER_URL) {
+            const error = this._handleError(ERRORS.MATCHER_URL);
+
+            throw error;
+        }
+
+        const { createLimitOrder, createMarketOrder } = orderRequestFactory(
+            this._options.MATCHER_URL,
+            this._handleError
+        );
+
+        const sign = () => this._signOrder(data);
+
+        return {
+            sign,
+            limit: () => sign().then(createLimitOrder),
+            market: () => sign().then(createMarketOrder),
+        };
+    }
+
+    @ensureProvider
+    @handleProviderInternalErrors
+    private _signOrder(
+        order: Order
+    ): Promise<TSignedTransaction<TExchangeTransaction>> {
+        return this.provider!.order(order);
+    }
+
+    @ensureProvider
+    @handleProviderInternalErrors
+    public encryptMessage(
+        sharedKey: string,
+        message: string,
+        prefix?: string
+    ): Promise<string> {
+        return this.provider!.decryptMessage(sharedKey, message, prefix);
+    }
+
+    @ensureProvider
+    @handleProviderInternalErrors
+    public decryptMessage(
+        sharedKey: string,
+        message: string,
+        prefix?: string
+    ): Promise<string> {
+        return this.provider!.decryptMessage(sharedKey, message, prefix);
     }
 
     public batch(tsx: SignerTx[]) {
@@ -379,6 +572,7 @@ export class Signer {
             type: TRANSACTION_TYPE.SPONSORSHIP,
         });
     };
+
     public setScript(data: SetScriptArgs): ChainApi1stCall<SignerSetScriptTx> {
         return this._setScript([])(data);
     }
@@ -422,19 +616,25 @@ export class Signer {
      * @param tx             транзакция
      * @param confirmations  количество подтверждений которое ожидаем
      */
-    public waitTxConfirm<T extends TTransaction>(
+    public async waitTxConfirm<T extends TTransaction>(
         tx: T,
         confirmations: number
     ): Promise<T>;
-    public waitTxConfirm<T extends TTransaction>(
+    public async waitTxConfirm<T extends TTransaction>(
         tx: T[],
         confirmations: number
     ): Promise<T[]>;
-    public waitTxConfirm<T extends TTransaction>(
+    public async waitTxConfirm<T extends TTransaction>(
         tx: T | T[],
         confirmations: number
     ): Promise<T | T[]> {
-        return wait(this._options.NODE_URL, tx as any, { confirmations }); // TODO Fix types
+        try {
+            return wait(this._options.NODE_URL, tx as any, { confirmations }); // TODO Fix types
+        } catch ({ message }) {
+            const error = this._handleError(ERRORS.WAIT_CONFIRMATION);
+
+            throw error;
+        }
     }
 
     private _createPipelineAPI<T extends SignerTx>(
@@ -465,19 +665,39 @@ export class Signer {
                 invoke: this._invoke(chainArgs),
             } as any),
             sign: () => this._sign<T>(txs as any),
-            broadcast: (options?: BroadcastOptions) =>
-                this.broadcast<T>(this._sign<T>(txs as any), options),
+            broadcast: async (options?: BroadcastOptions) => {
+                const signedTxs = await this._sign<T>(txs as any);
+
+                return this.broadcast<T>(signedTxs, options);
+            },
         };
     }
 
-    private _sign<T extends SignerTx>(toSign: T): Promise<SignedTx<T>>;
-    private _sign<T extends SignerTx>(toSign: T[]): Promise<[SignedTx<T>]>;
-    private _sign<T extends SignerTx>(
+    private async _sign<T extends SignerTx>(toSign: T): Promise<SignedTx<T>>;
+    private async _sign<T extends SignerTx>(
+        toSign: T[]
+    ): Promise<[SignedTx<T>]>;
+    @ensureProvider
+    @handleProviderInternalErrors
+    private async _sign<T extends SignerTx>(
         toSign: T | T[]
     ): Promise<SignedTx<T> | [SignedTx<T>]> {
-        return this._connectPromise.then((provider) =>
-            provider.sign(toSign as any)
-        ); // any fixes "Expression produces a union type that is too complex to represent"
+        const validation = validateTxs(toSign);
+
+        if (validation.isValid) {
+            const signedTxs = await this.provider!.sign(toSign as any);
+
+            this._logger.info('Transactions have been signed.');
+
+            return signedTxs;
+        } else {
+            const error = this._handleError(
+                ERRORS.API_ARGUMENTS,
+                validation.errors
+            );
+
+            throw error;
+        }
     }
 }
 
