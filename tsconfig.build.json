@@ -9,7 +9,6 @@
     "src/index.ts"
   ],
   "exclude": [
-    "test/**/*",
     "**/__tests__/**/*",
     "**/*.test.*",
   ]
