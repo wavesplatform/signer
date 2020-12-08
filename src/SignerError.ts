@@ -1,14 +1,15 @@
-const REPOSITORY_URL = 'http://';
+const REPOSITORY_URL = 'http://github.com/wavesplatform/signer';
 
 export const ERRORS = {
     SIGNER_OPTIONS: 1000 as 1000,
-    NETWORK_BYTE: 1002 as 1002,
-    NOT_AUTHORIZED: 1005 as 1005,
-    PROVIDER_CONNECT: 1006 as 1006,
-    ENSURE_PROVIDER: 1007 as 1007,
-    PROVIDER_INTERFACE: 1008 as 1008,
-    PROVIDER_INTERNAL: 1008 as 1008,
-    API_ARGUMENTS: 1010 as 1010,
+    NETWORK_BYTE: 1001 as 1001,
+    NOT_AUTHORIZED: 1002 as 1002,
+    PROVIDER_CONNECT: 1003 as 1003,
+    ENSURE_PROVIDER: 1004 as 1004,
+    PROVIDER_INTERFACE: 1005 as 1005,
+    PROVIDER_INTERNAL: 1006 as 1006,
+    API_ARGUMENTS: 1007 as 1007,
+    NETWORK_ERROR: 1008 as 1008
 };
 
 type ErrorDetails = {
@@ -39,12 +40,12 @@ export class SignerError extends Error {
             : undefined;
 
         return [
-            `Signer error`,
+            `Signer error:`,
             `    Title: ${this.errorDetails.title}`,
             `    Type: ${this.errorDetails.type}`,
             `    Code: ${this.errorDetails.code}`,
             details,
-            `    More info: ${REPOSITORY_URL}/readme.md#error-codes`,
+            `    More info: ${REPOSITORY_URL}/README.md#error-codes`,
         ]
             .filter(Boolean)
             .join('\n');
@@ -161,6 +162,19 @@ export class SignerAuthError extends SignerError {
         });
 
         Object.setPrototypeOf(this, SignerProviderConnectError.prototype);
+    }
+}
+
+export class SignerNetworkError extends SignerError {
+    // TODO REMOVE ANY, ADD MORE DETAILS
+    constructor(params: any) {
+        super({
+            code: ERRORS.NETWORK_ERROR,
+            title: 'Network Error',
+            type: 'network',
+            details: `Error connect to ${''}`,
+            errorArgs: {},
+        });
     }
 }
 

@@ -1,13 +1,9 @@
+import { ACCOUNTS, MOCK_URL } from '../test-env';
 import Signer from '../../src/Signer';
 import { TestProvider } from '../TestProvider';
-import { wait } from '../utils';
-import { NODE_URL, STATE } from '../_state';
 
 
-const { ACCOUNTS } = STATE;
-
-
-const waves = new Signer({ NODE_URL: NODE_URL });
+const waves = new Signer({ NODE_URL: MOCK_URL });
 const provider = new TestProvider(ACCOUNTS.SIMPLE.seed);
 waves.setProvider(provider);
 
@@ -21,42 +17,30 @@ const issue =
             reissuable: false
         })
         .broadcast()
-        .then(([tx]) =>
-            wait(tx).then(() => tx)
-        );
 
 it('Sponsorship', async () => {
-    const asset = await issue;
-    const [tx] = await waves
+    const [asset] = await issue;
+    await waves
         .sponsorship({
             assetId: asset.id,
             minSponsoredAssetFee: 1
         })
         .broadcast();
-
-    expect(tx.fee).toBe(Math.pow(10, 8));
-    await wait(tx);
 });
 
 it('Cancel Sponsorship', async () => {
-    const asset = await issue;
-    const [tx] = await waves
+    const [asset] = await issue;
+    await waves
         .sponsorship({
             assetId: asset.id,
             minSponsoredAssetFee: 1
         })
         .broadcast();
 
-    expect(tx.fee).toBe(Math.pow(10, 8));
-    await wait(tx);
-
-    const [cancel] = await waves
+    await waves
         .sponsorship({
             assetId: asset.id,
             minSponsoredAssetFee: 0
         })
         .broadcast();
-
-    expect(tx.fee).toBe(Math.pow(10, 8));
-    await wait(cancel);
 });

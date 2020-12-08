@@ -1,3 +1,17 @@
+import defaultTo from 'ramda/src/defaultTo';
+import prop from 'ramda/src/prop';
+import ifElse from 'ramda/src/ifElse';
+import pipe from 'ramda/src/pipe';
+import equals from 'ramda/src/equals';
+import gte from 'ramda/src/gte';
+import lte from 'ramda/src/lte';
+import always from 'ramda/src/always';
+import startsWith from 'ramda/src/startsWith';
+import isNil from 'ramda/src/isNil';
+import includes from 'ramda/src/includes';
+import flip from 'ramda/src/flip';
+
+
 const TX_DEFAULTS = {
     MAX_ATTACHMENT: 140,
     ALIAS: {
@@ -8,11 +22,6 @@ const TX_DEFAULTS = {
 };
 
 export const isArray = (value: unknown) => Array.isArray(value);
-
-export const defaultValue = (value: unknown) => () => value;
-
-export const pipe = (...args: Array<Function>) => (value: unknown) =>
-    args.reduce((acc: unknown, cb) => cb(acc), value);
 
 export const validatePipe = (...args: Array<Function>) => (value: unknown) => {
     let isValid = true;
@@ -26,17 +35,6 @@ export const validatePipe = (...args: Array<Function>) => (value: unknown) => {
 
     return isValid;
 };
-
-export const prop = (key: string | number) => (value: unknown) =>
-    value ? (value as any)[key] : undefined;
-
-export const lte = (ref: any) => (value: any) => ref >= value;
-
-export const gte = (ref: any) => (value: any) => ref <= value;
-
-export const ifElse = (condition: Function, a: Function, b: Function) => (
-    value: unknown
-) => (condition(value) ? a(value) : b(value));
 
 export const isRequired = (required: boolean) => (value: unknown) =>
     !required || value != null;
@@ -54,32 +52,18 @@ export const isNumberLike = (value: unknown) =>
 export const isBoolean = (value: unknown) =>
     value != null && (typeof value === 'boolean' || value instanceof Boolean);
 
-export const isEq = <T>(reference: T) => (value: unknown) => {
-    switch (true) {
-        case isNumber(value) && isNumber(reference):
-            return Number(value) === Number(reference);
-        case isString(value) && isString(reference):
-            return String(reference) === String(value);
-        case isBoolean(value) && isBoolean(reference):
-            return Boolean(value) === Boolean(reference);
-        default:
-            return reference === value;
-    }
-};
-
-export const orEq = (referencesList: Array<unknown>) => (value: unknown) =>
-    referencesList.some(isEq(value));
+export const orEq: <T>(list: Array<T>) => (item: T) => boolean = flip(includes) as any;
 
 export const exception = (msg: string) => {
     throw new Error(msg);
 };
 
-export const validateByShema = (
-    shema: Record<string, Function>,
-    errorTpl: (key: string, value?: unknown) => string
+export const validateBySchema = (
+    schema: Record<string, Function>,
+    errorTpl: (key: string, value?: unknown) => string,
 ) => (tx: Record<string, any>) => {
-    Object.entries(shema).forEach(([key, cb]) => {
-        const value = prop(key)(tx || {});
+    Object.entries(schema).forEach(([key, cb]) => {
+        const value = prop(key, tx || {});
 
         if (!cb(value)) {
             exception(errorTpl(key, value));
@@ -91,12 +75,12 @@ export const validateByShema = (
 
 export const isAttachment = ifElse(
     orEq([null, undefined]),
-    defaultValue(true),
+    defaultTo(true),
     ifElse(
         isString,
         pipe(prop('length'), lte(TX_DEFAULTS.MAX_ATTACHMENT)),
-        defaultValue(false)
-    )
+        defaultTo(false),
+    ),
 );
 
 const validateChars = (chars: string) => (value: string) =>
@@ -107,11 +91,11 @@ export const isValidAliasName = ifElse(
     pipe(
         prop('length'),
         validatePipe(
-            lte(TX_DEFAULTS.ALIAS.MAX_ALIAS_LENGTH),
-            gte(TX_DEFAULTS.ALIAS.MIN_ALIAS_LENGTH)
-        )
+            gte(TX_DEFAULTS.ALIAS.MAX_ALIAS_LENGTH),
+            lte(TX_DEFAULTS.ALIAS.MIN_ALIAS_LENGTH),
+        ),
     ),
-    defaultValue(false)
+    defaultTo(false),
 );
 
 export const ASSETS = {
@@ -120,8 +104,12 @@ export const ASSETS = {
     DESCRIPTION_MAX_BYTES: 1000,
 };
 
-export const isBase64 = validatePipe(isString, (v: string) =>
-    v.startsWith('base64:')
+export const isBase64 = validatePipe(
+    ifElse(
+        isString,
+        startsWith('base64:'),
+        pipe(isNil)
+    )
 );
 
 export const validateType = {
@@ -139,54 +127,56 @@ export const isValidDataPair = (data: {
 export const isValidData = validatePipe(
     isRequired(true),
     pipe(
-        prop('key'),
-        validatePipe(isString, (key: string) => !!key)
+        prop<'key', string>('key'),
+        validatePipe(isString, (key: string) => !!key),
     ),
-    isValidDataPair
+    isValidDataPair,
 );
 
 export const isPublicKey = validatePipe(
     isString,
-    (v: string) => v.length === 32
+    (v: string) => v.length === 32,
 );
 
 export const isValidAssetName = validatePipe(
     isString,
     pipe(
-        prop('length'),
+        prop<'length', number>('length'),
         ifElse(
-            gte(ASSETS.NAME_MIN_BYTES),
-            lte(ASSETS.NAME_MAX_BYTES),
-            defaultValue(false)
-        )
-    )
+            // TODO!! Add byte validator!!!
+            lte(ASSETS.NAME_MIN_BYTES),
+            gte(ASSETS.NAME_MAX_BYTES),
+            defaultTo(false),
+        ),
+    ),
 );
 
 export const isValidAssetDescription = validatePipe(
     isString,
-    pipe(prop('length'), lte(ASSETS.DESCRIPTION_MAX_BYTES))
+    pipe(prop<'length', number>('length'), gte(ASSETS.DESCRIPTION_MAX_BYTES)),
 );
 
 export const isAssetId = validatePipe(
     ifElse(
         orEq(['', null, undefined, 'WAVES']),
-        defaultValue(true),
-        (v: string) => v.length === 44
-    )
+        defaultTo(true),
+        (v: string) => v.length === 44,
+    ),
 );
 
 export const isAlias = (value: string) => value.startsWith('alias:');
 
-export const isValidAddress = (value: string) => isEq(32)(value.length);
+// TODO fix validator!!!
+export const isValidAddress = (value: string) => always(true);
 
 export const isValidAlias = pipe(
     (value: string) => value.split(':')[2],
-    isValidAliasName
+    isValidAliasName,
 );
 
 export const isRecipient = validatePipe(
     isString,
-    ifElse(isAlias, isValidAlias, isValidAddress)
+    ifElse(isAlias, isValidAlias, isValidAddress),
 );
 
 const orderScheme = {
@@ -196,15 +186,15 @@ const orderScheme = {
     version: orEq([undefined, 0, 1, 2, 3]),
     assetPair: validatePipe(
         isRequired(true),
-        pipe(prop('amountAsset'), isAssetId),
-        pipe(prop('priceAsset'), isAssetId)
+        pipe(prop<string, string | null>('amountAsset'), isAssetId),
+        pipe(prop<string, string | null>('priceAsset'), isAssetId),
     ),
     price: isNumberLike,
     amount: isNumberLike,
     matcherFee: isNumberLike,
     expiration: isNumberLike,
     timestamp: isNumber,
-    proofs: ifElse(isArray, defaultValue(true), orEq([undefined])),
+    proofs: ifElse(isArray, defaultTo(true), orEq([undefined])),
 };
 
 const v12OrderScheme = {
@@ -216,13 +206,15 @@ const v3OrderScheme = {
 };
 
 // eslint-disable-next-line @typescript-eslint/no-empty-function
-export const noop = () => {};
+export const noop = () => {
+};
 
-const validateOrder = validateByShema(orderScheme, noop as any);
-const validateOrderV2 = validateByShema(v12OrderScheme, noop as any);
-const validateOrderV3 = validateByShema(v3OrderScheme, noop as any);
+// TODO!!!
+const validateOrder = validateBySchema(orderScheme, noop as any);
+const validateOrderV2 = validateBySchema(v12OrderScheme, noop as any);
+const validateOrderV3 = validateBySchema(v3OrderScheme, noop as any);
 
 export const orderValidator = validatePipe(
     validateOrder,
-    ifElse(pipe(prop('version'), isEq(3)), validateOrderV3, validateOrderV2)
+    ifElse(pipe(prop('version'), equals(3)), validateOrderV3, validateOrderV2),
 );

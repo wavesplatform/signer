@@ -1,8 +1,17 @@
-import Signer from './Signer';
+import Signer, { SignerOptions } from './Signer';
 import { SignerError, ERRORS } from './SignerError';
 import { IConsole } from '@waves/client-logs';
+import { ErrorHandler } from './helpers';
 
-type TSigner = { [Key in keyof Signer]: Signer[Key] } & { _console: IConsole };
+type TSigner = { [Key in keyof Signer]: Signer[Key] } & {
+    _console: IConsole;
+    _handleError: ErrorHandler;
+    _options: SignerOptions;
+};
+
+const getErrorHandler = (signer: TSigner): ErrorHandler => {
+    return signer._handleError;
+};
 
 export const ensureProvider = (
     target: Signer,
@@ -11,14 +20,12 @@ export const ensureProvider = (
 ) => {
     const origin = descriptor.value;
 
-    descriptor.value = function(this: Signer, ...args: Array<any>): any {
+    descriptor.value = function(this: TSigner, ...args: Array<any>): any {
         const provider = this.currentProvider;
 
         if (!provider) {
-            const error = this._handleError(
-                ERRORS.ENSURE_PROVIDER,
-                propertyKey
-            );
+            const handler = getErrorHandler(this);
+            const error = handler(ERRORS.ENSURE_PROVIDER, [propertyKey]);
 
             throw error;
         }
@@ -40,11 +47,8 @@ export const catchProviderError = (
                 return Promise.reject(e);
             }
 
-            const error = new SignerError(ERROR_CODE_MAP.PROVIDER_ERROR, {
-                error: e,
-                provider: this.currentProvider!,
-            });
-
+            const handler = getErrorHandler(this);
+            const error = handler(ERRORS.PROVIDER_INTERNAL, [e.message]);
             this._console.error(error);
 
             return Promise.reject(e);
@@ -61,7 +65,8 @@ export const checkAuth = (
 
     descriptor.value = function(this: TSigner, ...args: Array<any>): any {
         if (this.currentProvider!.user == null) {
-            const error = this._handleError(ERRORS.NOT_AUTHORIZED, propertyKey);
+            const handler = getErrorHandler(this);
+            const error = handler(ERRORS.NOT_AUTHORIZED, [propertyKey]);
 
             throw error;
         }
@@ -78,16 +83,17 @@ export const catchNetworkErrors = (checkData: {
 
     descriptor.value = function(this: TSigner, ...args: Array<any>): any {
         if (checkData.isMatcher) {
-            if (!this.options.MATCHER_URL) {
-                const error = new SignerError(
-                    ERROR_CODE_MAP.NO_MATCHER_URL_PROVIDED,
-                    void 0
-                );
-
-                this._console.error(error);
-
-                return Promise.reject(error);
-            }
+            // TODO
+            // if (!this._options.MATCHER_URL) {
+            //     const error = new SignerError(
+            //         ERROR_CODE_MAP.NO_MATCHER_URL_PROVIDED,
+            //         void 0
+            //     );
+            //
+            //     this._console.error(error);
+            //
+            //     return Promise.reject(error);
+            // }
         }
 
         return origin.apply(this, args).catch((e: Error) => {
@@ -95,14 +101,9 @@ export const catchNetworkErrors = (checkData: {
                 return Promise.reject(e);
             }
 
-            const error = new SignerError(ERROR_CODE_MAP.NETWORK_ERROR, {
-                node: checkData.isMatcher
-                    ? this.options.MATCHER_URL!
-                    : this.options.NODE_URL,
-                requestName: checkData.requestName,
-                message: e.message,
-            });
-
+            const handler = getErrorHandler(this);
+            // TODO Provide more details for request error!
+            const error = handler(ERRORS.NETWORK_ERROR, [{}]);
             this._console.error(error);
 
             return Promise.reject(error);

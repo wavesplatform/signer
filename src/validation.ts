@@ -1,22 +1,20 @@
+import defaultTo from 'ramda/src/defaultTo';
+import prop from 'ramda/src/prop';
+import ifElse from 'ramda/src/ifElse';
+import pipe from 'ramda/src/pipe';
+import equals from 'ramda/src/equals';
 import {
     noop,
-    isEq,
     isNumberLike,
     isNumber,
     isBoolean,
-    ifElse,
-    gte,
-    prop,
-    defaultValue,
     validatePipe,
-    pipe,
     isRequired,
     orEq,
     isArray,
     isString,
-    validateByShema as validateBySheme,
+    validateBySchema as validateBySheme,
     isAttachment,
-    isValidAliasName,
     isPublicKey,
     isValidAssetName,
     isValidAssetDescription,
@@ -24,20 +22,23 @@ import {
     isRecipient,
     isAssetId,
     isValidData,
-    orderValidator,
-    isValidDataPair,
+    orderValidator, isValidAlias,
 } from './validators';
 import { TRANSACTION_TYPE, TTransactionType } from '@waves/ts-types';
 import { SignerOptions } from '.';
+import lte from 'ramda/src/lte';
+import not from 'ramda/src/not';
 
-const shouldValidate = (value: unknown): boolean =>
-    typeof value !== 'undefined' ? true : false;
+type TLong = string | number;
 
-const validateOptional = (validator: (value: unknown) => boolean) =>
-    ifElse(shouldValidate, validator, defaultValue(true));
+const shouldValidate: (value: any) => boolean =
+    pipe(equals(undefined), not);
+
+const validateOptional = (validator: (value: any) => boolean) =>
+    ifElse(shouldValidate, validator, defaultTo(true));
 
 type Validator = (
-    scheme: { [key: string]: (value: unknown) => boolean },
+    scheme: { [key: string]: (value: any) => boolean },
     method: string
 ) => (
     args: Record<string, any>
@@ -74,7 +75,7 @@ export const validator: Validator = (scheme, method) => (transaction) => {
 };
 
 const getCommonValidators = (transactionType: TTransactionType) => ({
-    type: isEq(transactionType),
+    type: equals(transactionType),
     version: validateOptional(orEq([undefined, 1, 2, 3])),
     senderPublicKey: validateOptional(isPublicKey),
     fee: validateOptional(isNumberLike),
@@ -84,10 +85,10 @@ const getCommonValidators = (transactionType: TTransactionType) => ({
 export const issueArgsScheme = {
     ...getCommonValidators(TRANSACTION_TYPE.ISSUE),
     name: isValidAssetName,
-    description: isValidAssetDescription,
+    description: validateOptional(isValidAssetDescription),
     quantity: isNumberLike,
     decimals: isNumber,
-    reissuable: isBoolean,
+    reissuable: validateOptional(isBoolean),
     script: validateOptional(isBase64),
     chainId: validateOptional(isNumber),
 };
@@ -114,8 +115,9 @@ export const reissueArgsValidator = validator(reissueArgsScheme, 'reissue');
 
 export const burnArgsScheme = {
     ...getCommonValidators(TRANSACTION_TYPE.BURN),
-    assetId: isAssetId,
-    quantity: isNumberLike,
+    // TODO isAssetId (not WAVES)
+    assetId: isString,
+    amount: isNumberLike,
     chainId: validateOptional(isNumber),
 };
 export const burnArgsValidator = validator(burnArgsScheme, 'burn');
@@ -129,7 +131,7 @@ export const leaseArgsValidator = validator(leaseArgsScheme, 'lease');
 
 export const cancelLeaseArgsScheme = {
     ...getCommonValidators(TRANSACTION_TYPE.CANCEL_LEASE),
-    leaseId: isAssetId,
+    leaseId: pipe(isString),
     chainId: validateOptional(isNumber),
 };
 export const cancelLeaseArgsValidator = validator(
@@ -140,7 +142,7 @@ export const cancelLeaseArgsValidator = validator(
 export const aliasArgsScheme = {
     ...getCommonValidators(TRANSACTION_TYPE.ALIAS),
     alias: (value: unknown) =>
-        typeof value === 'string' ? isValidAliasName(value) : false,
+        typeof value === 'string' ? isValidAlias(value) : false,
 };
 export const aliasArgsValidator = validator(aliasArgsScheme, 'alias');
 
@@ -148,13 +150,13 @@ export const massTransferArgsScheme = {
     ...getCommonValidators(TRANSACTION_TYPE.MASS_TRANSFER),
     transfers: validatePipe(
         isArray,
-        pipe(prop('length'), gte(0)),
+        pipe(prop<string, number>('length'), lte(0)),
         (data: Array<unknown>) =>
             data.every(
                 validatePipe(
                     isRequired(true),
-                    pipe(prop('recipient'), isRecipient),
-                    pipe(prop('amount'), isNumberLike)
+                    pipe(prop<string, string>('recipient'), isRecipient),
+                    pipe(prop<string, TLong>('amount'), isNumberLike)
                 )
             )
     ),
@@ -185,7 +187,8 @@ export const setScriptArgsValidator = validator(
 
 export const sponsorshipArgsScheme = {
     ...getCommonValidators(TRANSACTION_TYPE.SPONSORSHIP),
-    assetId: isAssetId,
+    // TODO Add not WAVES ASSET ID
+    assetId: isString,
     minSponsoredAssetFee: isNumberLike,
 };
 export const sponsorshipArgsValidator = validator(
@@ -223,19 +226,17 @@ export const invokeArgsScheme = {
     dApp: isRecipient,
     call: validateOptional(
         validatePipe(
-            pipe(prop('function'), isString),
-            pipe(prop('function'), prop('length'), gte(0)),
-            pipe(prop('args'), isArray),
-            (data: Array<unknown>) =>
-                data.every(validatePipe(isRequired(true), isValidDataPair))
+            pipe(prop<string, string>('function'), isString),
+            pipe(prop<string, any>('function'), prop('length'), lte(0)),
+            pipe(prop<string, any>('args'), isArray)
         )
     ),
     payment: validateOptional(
         validatePipe(isArray, (data: Array<unknown>) =>
             data.every(
                 validatePipe(
-                    pipe(prop('amount'), isNumberLike),
-                    pipe(prop('assetId'), isAssetId)
+                    pipe(prop<string, TLong>('amount'), isNumberLike),
+                    pipe(prop<string, string | null>('assetId'), isAssetId)
                 )
             )
         )

@@ -89,11 +89,7 @@ export interface Provider {
      * Sign an array of transactions
      * @param list
      */
-    sign<T extends SignerTx>(toSign: T): Promise<SignedTx<T>>;
-    sign<T extends SignerTx>(toSign: T[]): Promise<[SignedTx<T>]>;
-    sign<T extends SignerTx>(
-        toSign: T | T[]
-    ): Promise<SignedTx<T> | [SignedTx<T>]>;
+    sign<T extends SignerTx>(toSign: T[]): Promise<SignedTx<T>[]>;
 }
 
 export interface UserData {
@@ -123,7 +119,7 @@ type CommonArgs = Partial<Pick<ITransaction, 'fee' | 'senderPublicKey'>> & {
 } & { version?: 1 | 2 | 3 };
 
 export type IssueArgs = CommonArgs &
-    MakeOptional<IIssueTransactionFields, 'chainId' | 'script'>;
+    MakeOptional<IIssueTransactionFields, 'chainId' | 'script' | 'description' | 'reissuable'>;
 
 export type TransferArgs = CommonArgs &
     MakeOptional<ITransferTransactionFields, 'assetId' | 'feeAssetId'> &
@@ -280,7 +276,7 @@ export interface SignerOptions {
      * Урл матчера (временно не поддерживается)
      */
     // MATCHER_URL: string;
-    LOG_LEVEL: 'verbose' | 'production' | 'error';
+    LOG_LEVEL?: 'verbose' | 'production' | 'error';
 }
 
 export interface BroadcastOptions {
@@ -314,6 +310,6 @@ export type BroadcastedTx<T> = T extends SignedTx<SignerTx>[]
 export type Handler<T> = (data: T) => any;
 
 export type AuthEvents = {
-    login: UserData;
+    login: Readonly<UserData>;
     logout: void;
 };
