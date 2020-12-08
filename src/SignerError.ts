@@ -9,7 +9,7 @@ export const ERRORS = {
     PROVIDER_INTERFACE: 1005 as 1005,
     PROVIDER_INTERNAL: 1006 as 1006,
     API_ARGUMENTS: 1007 as 1007,
-    NETWORK_ERROR: 1008 as 1008
+    NETWORK_ERROR: 1008 as 1008,
 };
 
 type ErrorDetails = {
@@ -20,35 +20,35 @@ type ErrorDetails = {
     errorArgs: any;
 };
 
+const errorTemplate = (error: ErrorDetails) => {
+    const details = error.details
+        ? `    Details: ${error.details}`
+        : undefined;
+
+    return [
+        `Signer error:`,
+        `    Title: ${error.title}`,
+        `    Type: ${error.type}`,
+        `    Code: ${error.code}`,
+        details,
+        `    More info: ${REPOSITORY_URL}/README.md#error-codes`,
+    ]
+        .filter(Boolean)
+        .join('\n');
+};
+
 export class SignerError extends Error {
     public readonly code: number;
-    private readonly errorDetails: ErrorDetails;
+    public readonly type: string;
 
     constructor(details: ErrorDetails) {
-        super(details.title);
+        super(errorTemplate(details));
 
         this.code = details.code;
-        this.errorDetails = details;
+        this.type = details.type;
 
         // Set the prototype explicitly.
         Object.setPrototypeOf(this, SignerError.prototype);
-    }
-
-    public toString(): string {
-        const details = this.errorDetails.details
-            ? `    Details: ${this.errorDetails.details}`
-            : undefined;
-
-        return [
-            `Signer error:`,
-            `    Title: ${this.errorDetails.title}`,
-            `    Type: ${this.errorDetails.type}`,
-            `    Code: ${this.errorDetails.code}`,
-            details,
-            `    More info: ${REPOSITORY_URL}/README.md#error-codes`,
-        ]
-            .filter(Boolean)
-            .join('\n');
     }
 }
 
@@ -101,7 +101,7 @@ export class SignerProviderInterfaceError extends SignerError {
             title: 'Invalid Provider interface',
             type: 'validation',
             details: `\n        Invalid provider properties: ${invalidProperties.join(
-                ', '
+                ', ',
             )}`,
             errorArgs: invalidProperties,
         });
@@ -143,7 +143,7 @@ export class SignerProviderInternalError extends SignerError {
             code: ERRORS.ENSURE_PROVIDER,
             title: 'Provider internal error',
             type: 'provider',
-            details: `Provider internal error: ${message}`,
+            details: `Provider internal error: ${message}. This is not error of signer.`,
             errorArgs: { errorMessage: message },
         });
 
@@ -177,7 +177,3 @@ export class SignerNetworkError extends SignerError {
         });
     }
 }
-
-export type SignerErrorType =
-    | SignerProviderInterfaceError
-    | SignerProviderConnectError;

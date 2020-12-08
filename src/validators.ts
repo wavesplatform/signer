@@ -5,7 +5,6 @@ import pipe from 'ramda/src/pipe';
 import equals from 'ramda/src/equals';
 import gte from 'ramda/src/gte';
 import lte from 'ramda/src/lte';
-import always from 'ramda/src/always';
 import startsWith from 'ramda/src/startsWith';
 import isNil from 'ramda/src/isNil';
 import includes from 'ramda/src/includes';
@@ -143,7 +142,6 @@ export const isValidAssetName = validatePipe(
     pipe(
         prop<'length', number>('length'),
         ifElse(
-            // TODO!! Add byte validator!!!
             lte(ASSETS.NAME_MIN_BYTES),
             gte(ASSETS.NAME_MAX_BYTES),
             defaultTo(false),
@@ -160,14 +158,14 @@ export const isAssetId = validatePipe(
     ifElse(
         orEq(['', null, undefined, 'WAVES']),
         defaultTo(true),
-        (v: string) => v.length === 44,
+        isString,
     ),
 );
 
 export const isAlias = (value: string) => value.startsWith('alias:');
 
 // TODO fix validator!!!
-export const isValidAddress = (value: string) => always(true);
+export const isValidAddress = isString
 
 export const isValidAlias = pipe(
     (value: string) => value.split(':')[2],

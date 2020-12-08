@@ -3,6 +3,8 @@ import prop from 'ramda/src/prop';
 import ifElse from 'ramda/src/ifElse';
 import pipe from 'ramda/src/pipe';
 import equals from 'ramda/src/equals';
+import lte from 'ramda/src/lte';
+import not from 'ramda/src/not';
 import {
     noop,
     isNumberLike,
@@ -22,12 +24,11 @@ import {
     isRecipient,
     isAssetId,
     isValidData,
-    orderValidator, isValidAlias,
+    orderValidator,
+    isValidAliasName,
 } from './validators';
 import { TRANSACTION_TYPE, TTransactionType } from '@waves/ts-types';
 import { SignerOptions } from '.';
-import lte from 'ramda/src/lte';
-import not from 'ramda/src/not';
 
 type TLong = string | number;
 
@@ -142,7 +143,7 @@ export const cancelLeaseArgsValidator = validator(
 export const aliasArgsScheme = {
     ...getCommonValidators(TRANSACTION_TYPE.ALIAS),
     alias: (value: unknown) =>
-        typeof value === 'string' ? isValidAlias(value) : false,
+        typeof value === 'string' ? isValidAliasName(value) : false,
 };
 export const aliasArgsValidator = validator(aliasArgsScheme, 'alias');
 

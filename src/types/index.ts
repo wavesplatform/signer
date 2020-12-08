@@ -39,22 +39,23 @@ export interface TypedData {
      */
     value: string | number | boolean;
 }
+
 export interface Provider {
     user: UserData | null;
 
     on<EVENT extends keyof AuthEvents>(
         event: EVENT,
-        handler: Handler<AuthEvents[EVENT]>
+        handler: Handler<AuthEvents[EVENT]>,
     ): Provider;
 
     once<EVENT extends keyof AuthEvents>(
         event: EVENT,
-        handler: Handler<AuthEvents[EVENT]>
+        handler: Handler<AuthEvents[EVENT]>,
     ): Provider;
 
     off<EVENT extends keyof AuthEvents>(
         event: EVENT,
-        handler: Handler<AuthEvents[EVENT]>
+        handler: Handler<AuthEvents[EVENT]>,
     ): Provider;
 
     /**
@@ -155,71 +156,41 @@ export type SetAssetScriptArgs = CommonArgs &
     MakeOptional<ISetAssetScriptTransactionFields, 'chainId'>;
 
 export type InvokeArgs = CommonArgs &
-    MakeOptional<
-        IInvokeScriptTransactionFields,
-        'chainId' | 'payment' | 'call' | 'feeAssetId'
-    >;
+    MakeOptional<IInvokeScriptTransactionFields,
+        'chainId' | 'payment' | 'call' | 'feeAssetId'>;
 
 type SignerTxFactory<TxArgs, TxType extends TTransactionType> = TxArgs & {
     type: TxType;
 };
 
-export type SignerIssueTx = SignerTxFactory<
-    IssueArgs,
-    typeof TRANSACTION_TYPE.ISSUE
->;
-export type SignerTransferTx = SignerTxFactory<
-    TransferArgs,
-    typeof TRANSACTION_TYPE.TRANSFER
->;
-export type SignerReissueTx = SignerTxFactory<
-    ReissueArgs,
-    typeof TRANSACTION_TYPE.REISSUE
->;
-export type SignerBurnTx = SignerTxFactory<
-    BurnArgs,
-    typeof TRANSACTION_TYPE.BURN
->;
-export type SignerLeaseTx = SignerTxFactory<
-    LeaseArgs,
-    typeof TRANSACTION_TYPE.LEASE
->;
-export type SignerCancelLeaseTx = SignerTxFactory<
-    CancelLeaseArgs,
-    typeof TRANSACTION_TYPE.CANCEL_LEASE
->;
-export type SignerAliasTx = SignerTxFactory<
-    AliasArgs,
-    typeof TRANSACTION_TYPE.ALIAS
->;
-export type SignerMassTransferTx = SignerTxFactory<
-    MassTransferArgs,
-    typeof TRANSACTION_TYPE.MASS_TRANSFER
->;
-export type SignerDataTx = SignerTxFactory<
-    DataArgs,
-    typeof TRANSACTION_TYPE.DATA
->;
-export type SignerSetScriptTx = SignerTxFactory<
-    SetScriptArgs,
-    typeof TRANSACTION_TYPE.SET_SCRIPT
->;
-export type SignerSponsorshipTx = SignerTxFactory<
-    SponsorshipArgs,
-    typeof TRANSACTION_TYPE.SPONSORSHIP
->;
-export type SignerExchangeTx = SignerTxFactory<
-    ExchangeArgs,
-    typeof TRANSACTION_TYPE.EXCHANGE
->;
-export type SignerSetAssetScriptTx = SignerTxFactory<
-    SetAssetScriptArgs,
-    typeof TRANSACTION_TYPE.SET_ASSET_SCRIPT
->;
-export type SignerInvokeTx = SignerTxFactory<
-    InvokeArgs,
-    typeof TRANSACTION_TYPE.INVOKE_SCRIPT
->;
+export type SignerIssueTx = SignerTxFactory<IssueArgs,
+    typeof TRANSACTION_TYPE.ISSUE>;
+export type SignerTransferTx = SignerTxFactory<TransferArgs,
+    typeof TRANSACTION_TYPE.TRANSFER>;
+export type SignerReissueTx = SignerTxFactory<ReissueArgs,
+    typeof TRANSACTION_TYPE.REISSUE>;
+export type SignerBurnTx = SignerTxFactory<BurnArgs,
+    typeof TRANSACTION_TYPE.BURN>;
+export type SignerLeaseTx = SignerTxFactory<LeaseArgs,
+    typeof TRANSACTION_TYPE.LEASE>;
+export type SignerCancelLeaseTx = SignerTxFactory<CancelLeaseArgs,
+    typeof TRANSACTION_TYPE.CANCEL_LEASE>;
+export type SignerAliasTx = SignerTxFactory<AliasArgs,
+    typeof TRANSACTION_TYPE.ALIAS>;
+export type SignerMassTransferTx = SignerTxFactory<MassTransferArgs,
+    typeof TRANSACTION_TYPE.MASS_TRANSFER>;
+export type SignerDataTx = SignerTxFactory<DataArgs,
+    typeof TRANSACTION_TYPE.DATA>;
+export type SignerSetScriptTx = SignerTxFactory<SetScriptArgs,
+    typeof TRANSACTION_TYPE.SET_SCRIPT>;
+export type SignerSponsorshipTx = SignerTxFactory<SponsorshipArgs,
+    typeof TRANSACTION_TYPE.SPONSORSHIP>;
+export type SignerExchangeTx = SignerTxFactory<ExchangeArgs,
+    typeof TRANSACTION_TYPE.EXCHANGE>;
+export type SignerSetAssetScriptTx = SignerTxFactory<SetAssetScriptArgs,
+    typeof TRANSACTION_TYPE.SET_ASSET_SCRIPT>;
+export type SignerInvokeTx = SignerTxFactory<InvokeArgs,
+    typeof TRANSACTION_TYPE.INVOKE_SCRIPT>;
 
 export type MakeOptional<T, K extends keyof T> = Omit<T, K> &
     Partial<Pick<T, K>>;
@@ -304,8 +275,8 @@ export type SignedTx<T> = T extends SignerTx[]
 export type BroadcastedTx<T> = T extends SignedTx<SignerTx>[]
     ? { [P in keyof T]: T[P] & IWithApiMixin }
     : T extends SignedTx<SignerTx>
-    ? T & IWithApiMixin
-    : never;
+        ? T & IWithApiMixin
+        : never;
 
 export type Handler<T> = (data: T) => any;
 

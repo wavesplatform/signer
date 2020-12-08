@@ -59,7 +59,7 @@ import {
 } from './validation';
 import { ERRORS } from './SignerError';
 import { ErrorHandler, errorHandlerFactory } from './helpers';
-import { ensureProvider, checkAuth } from './decorators';
+import { ensureProvider, checkAuth, catchProviderError } from './decorators';
 
 export * from './types';
 
@@ -102,17 +102,23 @@ export class Signer {
             throw error;
         }
 
-        try {
-            this._networkBytePromise = getNetworkByte(this._options.NODE_URL);
-        } catch ({ message }) {
+        const makeNetworkByteError = (e: Error) => {
             const error = this._handleError(ERRORS.NETWORK_BYTE, [
                 {
-                    error: message,
+                    error: e.message,
                     node: this._options.NODE_URL,
                 },
             ]);
+            this._logger.error(error);
 
-            throw error;
+            return error;
+        }
+
+        try {
+            this._networkBytePromise = getNetworkByte(this._options.NODE_URL)
+                .catch((e) => Promise.reject(makeNetworkByteError(e)));
+        } catch (e) {
+            throw makeNetworkByteError(e);
         }
 
         this._logger.info(
@@ -124,10 +130,9 @@ export class Signer {
     @ensureProvider
     public on<EVENT extends keyof AuthEvents>(
         event: EVENT,
-        hander: Handler<AuthEvents[EVENT]>,
+        handler: Handler<AuthEvents[EVENT]>,
     ): Signer {
-        this.currentProvider!.on(event, hander);
-
+        this.currentProvider!.on(event, handler);
         this._logger.info(`Handler for "${event}" has been added.`);
 
         return this;
@@ -136,9 +141,9 @@ export class Signer {
     @ensureProvider
     public once<EVENT extends keyof AuthEvents>(
         event: EVENT,
-        hander: Handler<AuthEvents[EVENT]>,
+        handler: Handler<AuthEvents[EVENT]>,
     ): Signer {
-        this.currentProvider!.once(event, hander);
+        this.currentProvider!.once(event, handler);
 
         this._logger.info(`One-Time handler for "${event}" has been added.`);
 
@@ -148,9 +153,9 @@ export class Signer {
     @ensureProvider
     public off<EVENT extends keyof AuthEvents>(
         event: EVENT,
-        hander: Handler<AuthEvents[EVENT]>,
+        handler: Handler<AuthEvents[EVENT]>,
     ): Signer {
-        this.currentProvider!.off(event, hander);
+        this.currentProvider!.off(event, handler);
 
         this._logger.info(`Handler for "${event}" has been removed.`);
 
@@ -162,9 +167,13 @@ export class Signer {
         options?: BroadcastOptions,
     ): Promise<BroadcastedTx<SignedTx<T>>>;
     public broadcast<T extends SignerTx>(
+        toBroadcast: Array<SignedTx<T>>,
+        options?: BroadcastOptions,
+    ): Promise<BroadcastedTx<SignedTx<T>[]>>;
+    public broadcast<T extends SignerTx>(
         toBroadcast: SignedTx<T> | Array<SignedTx<T>>,
         options?: BroadcastOptions,
-    ): Promise<BroadcastedTx<SignedTx<T>> | BroadcastedTx<[SignedTx<T>]>> {
+    ): Promise<BroadcastedTx<SignedTx<T>> | BroadcastedTx<Array<SignedTx<T>>>> {
         // @ts-ignore
         return broadcast(this._options.NODE_URL, toBroadcast, options); // TODO поправить тип в broadcast
     }
@@ -322,6 +331,7 @@ export class Signer {
      * Подписываем сообщение пользователя (провайдер может устанавливать префикс)
      * @param message
      */
+    @catchProviderError
     public signMessage(message: string | number): Promise<string> {
         return this._connectPromise.then((provider) =>
             provider.signMessage(message),
@@ -332,6 +342,7 @@ export class Signer {
      * Подписываем типизированные данные
      * @param data
      */
+    @catchProviderError
     public signTypedData(data: Array<TypedData>): Promise<string> {
         return this._connectPromise.then((provider) =>
             provider.signTypedData(data),
@@ -347,6 +358,7 @@ export class Signer {
         );
     }
 
+    @catchProviderError
     public batch(tsx: SignerTx[]) {
         const sign = () => this._sign(tsx).then((result) => result);
 
@@ -359,6 +371,7 @@ export class Signer {
         };
     }
 
+    @catchProviderError
     public issue(data: IssueArgs): ChainApi1stCall<SignerIssueTx> {
         return this._issue([])(data);
     }
@@ -372,6 +385,7 @@ export class Signer {
         });
     };
 
+    @catchProviderError
     public transfer(data: TransferArgs): ChainApi1stCall<SignerTransferTx> {
         return this._transfer([])(data);
     }
@@ -385,6 +399,7 @@ export class Signer {
         });
     };
 
+    @catchProviderError
     public reissue(data: ReissueArgs): ChainApi1stCall<SignerReissueTx> {
         return this._reissue([])(data);
     }
@@ -398,6 +413,7 @@ export class Signer {
         });
     };
 
+    @catchProviderError
     public burn(data: BurnArgs): ChainApi1stCall<SignerBurnTx> {
         return this._burn([])(data);
     }
@@ -411,6 +427,7 @@ export class Signer {
         });
     };
 
+    @catchProviderError
     public lease(data: LeaseArgs): ChainApi1stCall<SignerLeaseTx> {
         return this._lease([])(data);
     }
@@ -424,6 +441,7 @@ export class Signer {
         });
     };
 
+    @catchProviderError
     public exchange(data: ExchangeArgs): ChainApi1stCall<SignerExchangeTx> {
         return this._exchange([])(data);
     }
@@ -437,6 +455,7 @@ export class Signer {
         });
     };
 
+    @catchProviderError
     public cancelLease(
         data: CancelLeaseArgs,
     ): ChainApi1stCall<SignerCancelLeaseTx> {
@@ -452,6 +471,7 @@ export class Signer {
         });
     };
 
+    @catchProviderError
     public alias(data: AliasArgs): ChainApi1stCall<SignerAliasTx> {
         return this._alias([])(data);
     }
@@ -465,6 +485,7 @@ export class Signer {
         });
     };
 
+    @catchProviderError
     public massTransfer(
         data: MassTransferArgs,
     ): ChainApi1stCall<SignerMassTransferTx> {
@@ -480,6 +501,7 @@ export class Signer {
         });
     };
 
+    @catchProviderError
     public data(data: DataArgs): ChainApi1stCall<SignerDataTx> {
         return this._data([])(data);
     }
@@ -493,6 +515,7 @@ export class Signer {
         });
     };
 
+    @catchProviderError
     public sponsorship(
         data: SponsorshipArgs,
     ): ChainApi1stCall<SignerSponsorshipTx> {
@@ -508,6 +531,7 @@ export class Signer {
         });
     };
 
+    @catchProviderError
     public setScript(data: SetScriptArgs): ChainApi1stCall<SignerSetScriptTx> {
         return this._setScript([])(data);
     }
@@ -521,6 +545,7 @@ export class Signer {
         });
     };
 
+    @catchProviderError
     public setAssetScript(
         data: SetAssetScriptArgs,
     ): ChainApi1stCall<SignerSetAssetScriptTx> {
@@ -536,6 +561,7 @@ export class Signer {
         });
     };
 
+    @catchProviderError
     public invoke(data: InvokeArgs): ChainApi1stCall<SignerInvokeTx> {
         return this._invoke([])(data);
     }
