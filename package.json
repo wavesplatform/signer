@@ -17,8 +17,8 @@
   "scripts": {
     "watch": "webpack --watch",
     "prepare": "npm run build",
-    "prepublish": "npm test && npm run generateinterface.ts",
-    "postinstall": "npm run generateinterface.ts",
+    "prepublish": "npm test && npm run generateInterface",
+    "postinstall": "npm run generateInterface",
     "postversion": "npm publish",
     "testCommand": "jest",
     "generateInterface": "npx ts-node generateinterface.ts",
