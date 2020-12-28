@@ -153,15 +153,15 @@ export class Signer {
                 (data) =>
                     data.balances.map((item) => ({
                         assetId: item.assetId,
-                        assetName: item.issueTransaction.name,
-                        decimals: item.issueTransaction.decimals,
+                        assetName: item.issueTransaction!.name,
+                        decimals: item.issueTransaction!.decimals,
                         amount: String(item.balance),
                         isMyAsset:
-                            item.issueTransaction.sender === user.address,
+                            item.issueTransaction!.sender === user.address,
                         tokens:
                             item.balance *
-                            Math.pow(10, item.issueTransaction.decimals),
-                        isSmart: !!item.issueTransaction.script,
+                            Math.pow(10, item.issueTransaction!.decimals),
+                        isSmart: !!item.issueTransaction!.script,
                         sponsorship:
                             item.sponsorBalance != null &&
                             item.sponsorBalance > Math.pow(10, 8) &&
