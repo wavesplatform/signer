@@ -54,7 +54,7 @@
   },
   "dependencies": {
     "@waves/node-api-js": "^1.1.2",
-    "@waves/ts-types": "github:wavesplatform/ts-types#extract-tx-specific-fields"
+    "@waves/ts-types": "^0.2.0-test"
   },
   "devDependencies": {
     "@types/fs-extra": "^8.0.1",
