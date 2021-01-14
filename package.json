@@ -16,9 +16,7 @@
   "license": "MIT",
   "scripts": {
     "watch": "webpack --watch",
-    "prepare": "npm run build",
-    "prepublish": "npm run generateInterface",
-    "postinstall": "npm run generateInterface",
+    "prepublish": "npm run generateInterface && npm run build",
     "postversion": "npm publish",
     "generateInterface": "npx ts-node generateInterface.ts",
     "bundle:d": "npm run generateInterface && cross-env NODE_ENV=development webpack",
