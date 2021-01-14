@@ -49,8 +49,8 @@ import getNetworkByte from '@waves/node-api-js/cjs/tools/blocks/getNetworkByte';
 import { ChainApi1stCall } from './types/api';
 import {
     TRANSACTION_TYPE,
-    TTransaction,
-    TTransactionType,
+    Transaction,
+    TransactionType,
 } from '@waves/ts-types';
 import {
     argsValidators,
@@ -331,7 +331,6 @@ export class Signer {
      * Подписываем сообщение пользователя (провайдер может устанавливать префикс)
      * @param message
      */
-    @catchProviderError
     public signMessage(message: string | number): Promise<string> {
         return this._connectPromise.then((provider) =>
             provider.signMessage(message),
@@ -342,7 +341,6 @@ export class Signer {
      * Подписываем типизированные данные
      * @param data
      */
-    @catchProviderError
     public signTypedData(data: Array<TypedData>): Promise<string> {
         return this._connectPromise.then((provider) =>
             provider.signTypedData(data),
@@ -358,7 +356,6 @@ export class Signer {
         );
     }
 
-    @catchProviderError
     public batch(tsx: SignerTx[]) {
         const sign = () => this._sign(tsx).then((result) => result);
 
@@ -371,7 +368,6 @@ export class Signer {
         };
     }
 
-    @catchProviderError
     public issue(data: IssueArgs): ChainApi1stCall<SignerIssueTx> {
         return this._issue([])(data);
     }
@@ -385,7 +381,6 @@ export class Signer {
         });
     };
 
-    @catchProviderError
     public transfer(data: TransferArgs): ChainApi1stCall<SignerTransferTx> {
         return this._transfer([])(data);
     }
@@ -399,7 +394,6 @@ export class Signer {
         });
     };
 
-    @catchProviderError
     public reissue(data: ReissueArgs): ChainApi1stCall<SignerReissueTx> {
         return this._reissue([])(data);
     }
@@ -413,7 +407,6 @@ export class Signer {
         });
     };
 
-    @catchProviderError
     public burn(data: BurnArgs): ChainApi1stCall<SignerBurnTx> {
         return this._burn([])(data);
     }
@@ -427,7 +420,6 @@ export class Signer {
         });
     };
 
-    @catchProviderError
     public lease(data: LeaseArgs): ChainApi1stCall<SignerLeaseTx> {
         return this._lease([])(data);
     }
@@ -441,7 +433,6 @@ export class Signer {
         });
     };
 
-    @catchProviderError
     public exchange(data: ExchangeArgs): ChainApi1stCall<SignerExchangeTx> {
         return this._exchange([])(data);
     }
@@ -455,7 +446,6 @@ export class Signer {
         });
     };
 
-    @catchProviderError
     public cancelLease(
         data: CancelLeaseArgs,
     ): ChainApi1stCall<SignerCancelLeaseTx> {
@@ -471,7 +461,6 @@ export class Signer {
         });
     };
 
-    @catchProviderError
     public alias(data: AliasArgs): ChainApi1stCall<SignerAliasTx> {
         return this._alias([])(data);
     }
@@ -485,7 +474,6 @@ export class Signer {
         });
     };
 
-    @catchProviderError
     public massTransfer(
         data: MassTransferArgs,
     ): ChainApi1stCall<SignerMassTransferTx> {
@@ -501,7 +489,6 @@ export class Signer {
         });
     };
 
-    @catchProviderError
     public data(data: DataArgs): ChainApi1stCall<SignerDataTx> {
         return this._data([])(data);
     }
@@ -515,7 +502,6 @@ export class Signer {
         });
     };
 
-    @catchProviderError
     public sponsorship(
         data: SponsorshipArgs,
     ): ChainApi1stCall<SignerSponsorshipTx> {
@@ -531,7 +517,6 @@ export class Signer {
         });
     };
 
-    @catchProviderError
     public setScript(data: SetScriptArgs): ChainApi1stCall<SignerSetScriptTx> {
         return this._setScript([])(data);
     }
@@ -545,7 +530,6 @@ export class Signer {
         });
     };
 
-    @catchProviderError
     public setAssetScript(
         data: SetAssetScriptArgs,
     ): ChainApi1stCall<SignerSetAssetScriptTx> {
@@ -561,7 +545,6 @@ export class Signer {
         });
     };
 
-    @catchProviderError
     public invoke(data: InvokeArgs): ChainApi1stCall<SignerInvokeTx> {
         return this._invoke([])(data);
     }
@@ -580,15 +563,15 @@ export class Signer {
      * @param tx             транзакция
      * @param confirmations  количество подтверждений которое ожидаем
      */
-    public waitTxConfirm<T extends TTransaction>(
+    public waitTxConfirm<T extends Transaction>(
         tx: T,
         confirmations: number,
     ): Promise<T>;
-    public waitTxConfirm<T extends TTransaction>(
+    public waitTxConfirm<T extends Transaction>(
         tx: T[],
         confirmations: number,
     ): Promise<T[]>;
-    public waitTxConfirm<T extends TTransaction>(
+    public waitTxConfirm<T extends Transaction>(
         tx: T | T[],
         confirmations: number,
     ): Promise<T | T[]> {
@@ -640,7 +623,7 @@ export class Signer {
         const signerTxs = Array.isArray(toSign) ? toSign : [toSign];
 
         const validateTx = (tx: SignerTx) => argsValidators[tx.type](tx);
-        const knownTxPredicate = (type: TTransactionType) =>
+        const knownTxPredicate = (type: TransactionType) =>
             Object.keys(argsValidators).includes(String(type));
 
         const unknownTxs = signerTxs.filter(
@@ -677,6 +660,7 @@ export class Signer {
 
     private _sign<T extends SignerTx>(toSign: T): Promise<SignedTx<T>>;
     private _sign<T extends SignerTx>(toSign: T[]): Promise<[SignedTx<T>]>;
+    @catchProviderError
     private _sign<T extends SignerTx>(
         toSign: T[],
     ): Promise<SignedTx<T>[]> {

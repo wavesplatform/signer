@@ -1,28 +1,29 @@
 import {
-    ITransaction,
-    TProofs,
-    IIssueTransactionFields,
-    ITransferTransactionFields,
-    ITransferTransactionV3,
-    TLong,
-    IReissueTransactionFields,
-    IBurnTransactionFields,
-    ILeaseTransactionFields,
-    ICancelLeaseTransactionFields,
-    IMassTransferTransactionFields,
-    IMassTransferTransactionV2,
-    IAliasTransactionFields,
-    IDataTransactionFields,
-    ISetScriptTransactionFields,
-    ISponsorshipTransactionFields,
-    IExchangeTransactionFields,
-    ISetAssetScriptTransactionFields,
-    IInvokeScriptTransactionFields,
-    TTransactionType,
+    Proofs,
+    IssueTransactionFields,
+    TransferTransactionFields,
+    TransferTransactionV3,
+    Long,
+    ReissueTransactionFields,
+    BurnTransactionFields,
+    LeaseTransactionFields,
+    CancelLeaseTransactionFields,
+    MassTransferTransactionFields,
+    AliasTransactionFields,
+    DataTransactionFields,
+    SetScriptTransactionFields,
+    SponsorshipTransactionFields,
+    ExchangeTransactionFields,
+    SetAssetScriptTransactionFields,
+    InvokeScriptTransactionFields,
+    UpdateAssetInfoTransactionFields,
+    TransactionType,
     TRANSACTION_TYPE,
-    TSignedTransaction,
-    IWithApiMixin,
-    TTransactionMap,
+    SignedTransaction,
+    WithApiMixin,
+    TransactionMap,
+    WithId,
+    BaseTransaction,
 } from '@waves/ts-types';
 
 export interface TypedData {
@@ -90,7 +91,7 @@ export interface Provider {
      * Sign an array of transactions
      * @param list
      */
-    sign<T extends SignerTx>(toSign: T[]): Promise<SignedTx<T>[]>;
+    sign<T extends Array<SignerTx>>(toSign: T): Promise<SignedTx<T>>;
 }
 
 export interface UserData {
@@ -115,51 +116,47 @@ export interface ConnectOptions {
     NETWORK_BYTE: number;
 }
 
-type CommonArgs = Partial<Pick<ITransaction, 'fee' | 'senderPublicKey'>> & {
-    proofs?: TProofs;
-} & { version?: 1 | 2 | 3 };
+type CommonArgs = Partial<Pick<BaseTransaction, 'fee' | 'senderPublicKey'>> & {
+    proofs?: Proofs;
+} & { version?: number };
 
 export type IssueArgs = CommonArgs &
-    MakeOptional<IIssueTransactionFields, 'chainId' | 'script' | 'description' | 'reissuable'>;
+    MakeOptional<IssueTransactionFields, 'script' | 'description' | 'reissuable'>;
 
 export type TransferArgs = CommonArgs &
-    MakeOptional<ITransferTransactionFields, 'assetId' | 'feeAssetId'> &
-    Partial<Pick<ITransferTransactionV3<TLong>, 'attachment'>>;
+    MakeOptional<TransferTransactionFields, 'assetId' | 'feeAssetId'> &
+    Partial<Pick<TransferTransactionV3<Long>, 'attachment'>>;
 
-export type ReissueArgs = CommonArgs &
-    MakeOptional<IReissueTransactionFields, 'chainId'>;
+export type ReissueArgs = CommonArgs & ReissueTransactionFields;
 
-export type BurnArgs = CommonArgs &
-    MakeOptional<IBurnTransactionFields, 'chainId'>;
+export type BurnArgs = CommonArgs & BurnTransactionFields;
 
-export type LeaseArgs = CommonArgs & ILeaseTransactionFields;
+export type LeaseArgs = CommonArgs & LeaseTransactionFields;
 
-export type CancelLeaseArgs = CommonArgs &
-    MakeOptional<ICancelLeaseTransactionFields, 'chainId'>;
+export type CancelLeaseArgs = CommonArgs & CancelLeaseTransactionFields;
 
-export type AliasArgs = CommonArgs & IAliasTransactionFields;
+export type AliasArgs = CommonArgs & AliasTransactionFields;
 
 export type MassTransferArgs = CommonArgs &
-    MakeOptional<IMassTransferTransactionFields, 'assetId'> &
-    Partial<Pick<IMassTransferTransactionV2<TLong>, 'attachment'>>;
+    MakeOptional<MassTransferTransactionFields, 'assetId'>;
 
-export type DataArgs = CommonArgs & IDataTransactionFields;
+export type DataArgs = CommonArgs & DataTransactionFields;
 
-export type SetScriptArgs = CommonArgs &
-    MakeOptional<ISetScriptTransactionFields, 'chainId'>;
+export type SetScriptArgs = CommonArgs & SetScriptTransactionFields;
 
-export type SponsorshipArgs = CommonArgs & ISponsorshipTransactionFields;
+export type SponsorshipArgs = CommonArgs & SponsorshipTransactionFields;
 
-export type ExchangeArgs = CommonArgs & IExchangeTransactionFields;
+export type ExchangeArgs = CommonArgs & ExchangeTransactionFields;
 
-export type SetAssetScriptArgs = CommonArgs &
-    MakeOptional<ISetAssetScriptTransactionFields, 'chainId'>;
+export type SetAssetScriptArgs = CommonArgs & SetAssetScriptTransactionFields;
 
 export type InvokeArgs = CommonArgs &
-    MakeOptional<IInvokeScriptTransactionFields,
-        'chainId' | 'payment' | 'call' | 'feeAssetId'>;
+    MakeOptional<InvokeScriptTransactionFields, 'payment' | 'call' | 'feeAssetId'>;
 
-type SignerTxFactory<TxArgs, TxType extends TTransactionType> = TxArgs & {
+export type UpdateAssetIngoArgs = CommonArgs &
+    MakeOptional<UpdateAssetInfoTransactionFields, 'description' | 'name'>;
+
+type SignerTxFactory<TxArgs, TxType extends TransactionType> = TxArgs & {
     type: TxType;
 };
 
@@ -191,6 +188,8 @@ export type SignerSetAssetScriptTx = SignerTxFactory<SetAssetScriptArgs,
     typeof TRANSACTION_TYPE.SET_ASSET_SCRIPT>;
 export type SignerInvokeTx = SignerTxFactory<InvokeArgs,
     typeof TRANSACTION_TYPE.INVOKE_SCRIPT>;
+export type SignerUpdateAssetInfoTx = SignerTxFactory<UpdateAssetIngoArgs,
+    typeof TRANSACTION_TYPE.UPDATE_ASSET_INFO>
 
 export type MakeOptional<T, K extends keyof T> = Omit<T, K> &
     Partial<Pick<T, K>>;
@@ -209,7 +208,8 @@ export type SignerTx =
     | SignerSponsorshipTx
     | SignerExchangeTx
     | SignerSetAssetScriptTx
-    | SignerInvokeTx;
+    | SignerInvokeTx
+    | SignerUpdateAssetInfoTx;
 
 export type Balance = {
     /**
@@ -217,18 +217,18 @@ export type Balance = {
      * returned in minimum indivisible parts
      * for example 1 WAVES = 100000000 in this API
      */
-    amount: TLong;
+    amount: Long;
     /**
      * Amount of money on balance
      * returned in minimum indivisible parts
      * (API data multiplied by 10 to the power of decimals)
      */
-    tokens: TLong;
+    tokens: Long;
     /**
      * If there is a field, then it contains a rate for paying a commission
      * (to 0.001 WAVES)
      */
-    sponsorship?: TLong | null;
+    sponsorship?: Long | null;
     assetId: string;
     assetName: string;
     decimals: number;
@@ -262,20 +262,21 @@ export interface BroadcastOptions {
 }
 
 // Мапит транзакцию сайнера в транзакцию из @waves/ts-types
-export type SignerTxToSignedTx<T> = T extends SignerTx
-    ? T['type'] extends keyof TTransactionMap
-        ? TSignedTransaction<TTransactionMap[T['type']]>
+export type SignerTxToSignedTx<T> =
+    T extends SignerTx
+        ? T['type'] extends keyof TransactionMap
+        ? SignedTransaction<TransactionMap[T['type']]> & WithId
         : never
-    : never;
+        : never;
 
 export type SignedTx<T> = T extends SignerTx[]
     ? { [P in keyof T]: SignerTxToSignedTx<T[P]> }
     : SignerTxToSignedTx<T>;
 
 export type BroadcastedTx<T> = T extends SignedTx<SignerTx>[]
-    ? { [P in keyof T]: T[P] & IWithApiMixin }
+    ? { [P in keyof T]: T[P] & WithApiMixin }
     : T extends SignedTx<SignerTx>
-        ? T & IWithApiMixin
+        ? T & WithApiMixin
         : never;
 
 export type Handler<T> = (data: T) => any;

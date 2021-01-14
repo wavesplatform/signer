@@ -27,7 +27,7 @@ import {
     orderValidator,
     isValidAliasName,
 } from './validators';
-import { TRANSACTION_TYPE, TTransactionType } from '@waves/ts-types';
+import { TRANSACTION_TYPE, TransactionType } from '@waves/ts-types';
 import { SignerOptions } from '.';
 
 type TLong = string | number;
@@ -75,7 +75,7 @@ export const validator: Validator = (scheme, method) => (transaction) => {
     };
 };
 
-const getCommonValidators = (transactionType: TTransactionType) => ({
+const getCommonValidators = (transactionType: TransactionType) => ({
     type: equals(transactionType),
     version: validateOptional(orEq([undefined, 1, 2, 3])),
     senderPublicKey: validateOptional(isPublicKey),

@@ -9,6 +9,7 @@ import startsWith from 'ramda/src/startsWith';
 import isNil from 'ramda/src/isNil';
 import includes from 'ramda/src/includes';
 import flip from 'ramda/src/flip';
+import always from 'ramda/src/always';
 
 
 const TX_DEFAULTS = {
@@ -77,7 +78,8 @@ export const isAttachment = ifElse(
     defaultTo(true),
     ifElse(
         isString,
-        pipe(prop('length'), lte(TX_DEFAULTS.MAX_ATTACHMENT)),
+        // TODO Fix attachment gte(TX_DEFAULTS.MAX_ATTACHMENT)
+        pipe(prop('length'), always(true)),
         defaultTo(false),
     ),
 );
