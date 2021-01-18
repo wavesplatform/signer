@@ -2,7 +2,6 @@ import {
     Proofs,
     IssueTransactionFields,
     TransferTransactionFields,
-    TransferTransactionV3,
     Long,
     ReissueTransactionFields,
     BurnTransactionFields,
@@ -91,6 +90,7 @@ export interface Provider {
      * Sign an array of transactions
      * @param list
      */
+    sign<T extends SignerTx>(toSign: T[]): Promise<SignedTx<T>>;
     sign<T extends Array<SignerTx>>(toSign: T): Promise<SignedTx<T>>;
 }
 
@@ -124,8 +124,7 @@ export type IssueArgs = CommonArgs &
     MakeOptional<IssueTransactionFields, 'script' | 'description' | 'reissuable'>;
 
 export type TransferArgs = CommonArgs &
-    MakeOptional<TransferTransactionFields, 'assetId' | 'feeAssetId'> &
-    Partial<Pick<TransferTransactionV3<Long>, 'attachment'>>;
+    MakeOptional<TransferTransactionFields, 'assetId' | 'feeAssetId' | 'attachment'>;
 
 export type ReissueArgs = CommonArgs & ReissueTransactionFields;
 

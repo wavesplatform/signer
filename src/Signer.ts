@@ -357,13 +357,16 @@ export class Signer {
     }
 
     public batch(tsx: SignerTx[]) {
-        const sign = () => this._sign(tsx).then((result) => result);
+        const sign = (): Promise<SignedTx<SignerTx>[]> =>
+            this._sign(tsx).then((result) => result);
 
         return {
             sign,
-            broadcast: (opt?: BroadcastOptions) =>
-                sign().then((transactions: any) =>
-                    this.broadcast(transactions, opt),
+            broadcast: (
+                opt?: BroadcastOptions
+            ): Promise<BroadcastedTx<SignedTx<SignerTx>>[]> =>
+                sign().then((transactions) =>
+                    this.broadcast(transactions, opt)
                 ),
         };
     }
