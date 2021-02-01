@@ -302,8 +302,12 @@ export class Signer {
             this._logger.info('Logged in.');
 
             return this._userData;
-        } catch ({ message }) {
-            const error = this._handleError(ERRORS.PROVIDER_INTERNAL, message);
+        } catch (err) {
+            if (err === 'Error: User rejection!') {
+                throw err;
+            }
+
+            const error = this._handleError(ERRORS.PROVIDER_INTERNAL, err.message);
 
             throw error;
         }

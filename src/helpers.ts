@@ -34,7 +34,7 @@ export const errorHandlerFactory = (logger: IConsole): ErrorHandler => (
     errorCode: keyof typeof ERRORS_MAP,
     parameters: ConstructorParameters<typeof ERRORS_MAP[typeof errorCode]>
 ) => {
-    const error = new (ERRORS_MAP[errorCode] as any)(...parameters);
+    const error = new (ERRORS_MAP[errorCode] as any)(...(parameters || []));
 
     logger.log(error.toString());
 

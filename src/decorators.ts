@@ -42,13 +42,18 @@ export const catchProviderError = (
     const origin = descriptor.value;
 
     descriptor.value = function(this: TSigner, ...args: Array<any>): any {
-        return origin.apply(this, args).catch((e: Error) => {
+        return origin.apply(this, args).catch((e: any) => {
+            if (e === 'Error: User rejection!') {
+                return Promise.reject(e);
+            }
+
             if (e instanceof SignerError) {
                 return Promise.reject(e);
             }
 
             const handler = getErrorHandler(this);
             const error = handler(ERRORS.PROVIDER_INTERNAL, [e.message]);
+
             this._console.error(error);
 
             return Promise.reject(e);
@@ -104,6 +109,7 @@ export const catchNetworkErrors = (checkData: {
             const handler = getErrorHandler(this);
             // TODO Provide more details for request error!
             const error = handler(ERRORS.NETWORK_ERROR, [{}]);
+
             this._console.error(error);
 
             return Promise.reject(error);
