@@ -1,7 +1,8 @@
 {
   "name": "@waves/signer",
-  "version": "0.1.6",
+  "version": "1.0.1",
   "main": "dist/cjs/index.js",
+  "module": "dist/es/index.js",
   "types": "dist/cjs/index.d.ts",
   "repository": {
     "type": "git",
@@ -16,21 +17,19 @@
   "license": "MIT",
   "scripts": {
     "watch": "webpack --watch",
-    "prepare": "npm run build",
-    "prepublish": "npm test && npm run generateInterface",
+    "prepublish": "npm run generateInterface && npm run build",
     "postversion": "npm publish",
-    "testCommand": "jest",
-    "generateInterface": "npx ts-node generateinterface.ts",
+    "generateInterface": "npx ts-node generateInterface.ts",
     "bundle:d": "npm run generateInterface && cross-env NODE_ENV=development webpack",
     "bundle:p": "npm run generateInterface && cross-env NODE_ENV=production webpack",
     "build:cjs": "shx rm -rf dist/cjs && tsc -p tsconfig.build.json -m commonjs --outDir dist/cjs",
     "build:es": "shx rm -rf dist/es && tsc -p tsconfig.build.json -m es6 --outDir dist/es",
     "build": "shx rm -rf dist && run-p build:* bundle:*",
-    "test": "node-state -n -m typescript -o ./test/_state.ts -r",
-    "prettier": "prettier --ignore-path .gitignore \"./src/**/*.+(js|jsx|ts|tsx)\"",
+    "prettier": "prettier \"./src/**/*.+(js|jsx|ts|tsx)\"",
     "format": "npm run prettier -- --write",
     "check-format": "npm run prettier -- --list-different",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "test": "npx jest"
   },
   "jest": {
     "collectCoverage": true,
@@ -53,16 +52,21 @@
     ]
   },
   "dependencies": {
-    "@waves/node-api-js": "^1.1.2",
-    "@waves/ts-types": "^0.2.0-test"
+    "@types/ramda": "^0.27.32",
+    "@waves/client-logs": "^1.0.0",
+    "@waves/node-api-js": "^1.2.0",
+    "@waves/ts-types": "^1.0.0",
+    "ramda": "^0.27.1"
   },
   "devDependencies": {
     "@types/fs-extra": "^8.0.1",
     "@types/jest": "^24.0.21",
     "@types/node-fetch": "^2.5.3",
+    "@typescript-eslint/eslint-plugin": "^2.22.0",
+    "@typescript-eslint/parser": "^2.22.0",
     "@waves/js-test-env": "^0.7.4",
     "@waves/node-state": "0.0.5",
-    "@waves/waves-transactions": "^3.24.0",
+    "@waves/waves-transactions": "^4.1.3",
     "cross-env": "^7.0.0",
     "dotenv": "^8.2.0",
     "eslint": "^6.8.0",
@@ -80,14 +84,15 @@
     "npm-run-all": "^4.1.5",
     "prettier": "^1.19.1",
     "shx": "^0.3.2",
-    "ts-jest": "^24.1.0",
+    "ts-jest": "^26.4.4",
     "ts-loader": "^6.2.0",
     "ts-node": "^8.5.2",
-    "typed-ts-events": "^1.1.1",
-    "typedoc": "^0.19.2",
+    "typed-ts-events": "^1.2.1",
+    "typedoc": "^0.15.0",
     "typedoc-plugin-markdown": "^2.2.11",
-    "typescript": "^3.7.2",
+    "typescript": "^3.9.7",
     "webpack": "^4.41.0",
+    "webpack-bundle-analyzer": "^3.6.0",
     "webpack-cli": "^3.3.9",
     "webpack-merge": "^4.2.2"
   }

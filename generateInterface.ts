@@ -64,12 +64,11 @@ const compile = (currCall: number, max: number): string => {
         .join(', ');
 
     let signBroadcastGenerics = generics[0];
-    const shouldWrap = !isLastCall && !isFirstCall;
 
     if (!isLastCall) {
         const genericsStr = generics.join(', ');
 
-        signBroadcastGenerics = shouldWrap ? `[${genericsStr}]` : genericsStr;
+        signBroadcastGenerics = `[${genericsStr}]`;
     }
 
     const returns = generateReturnType({
