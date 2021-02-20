@@ -10,7 +10,8 @@ import isNil from 'ramda/src/isNil';
 import includes from 'ramda/src/includes';
 import flip from 'ramda/src/flip';
 import always from 'ramda/src/always';
-
+import tryCatch from 'ramda/src/tryCatch';
+import { base58Decode } from '@waves/ts-lib-crypto';
 
 const TX_DEFAULTS = {
     MAX_ATTACHMENT: 140,
@@ -136,7 +137,7 @@ export const isValidData = validatePipe(
 
 export const isPublicKey = validatePipe(
     isString,
-    (v: string) => v.length === 32,
+    tryCatch((v) => base58Decode(v).length === 32, always(false))
 );
 
 export const isValidAssetName = validatePipe(
