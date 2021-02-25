@@ -25,15 +25,13 @@ For now, you can use one of the following Providers:
 
 * [ProviderSeed](https://github.com/wavesplatform/provider-seed) developed by Waves team creates user account from SEED. ProviderSeed can be used at the app debugging stage.
 * [ProviderWeb](https://github.com/waves-exchange/provider-web) developed by Waves.Exchange team uses an account created or imported into the Waves.Exchange web app via user's private key or seed phrase.
-* [ProviderCloud](https://github.com/waves-exchange/provider-web) developed by Waves.Exchange team uses an email-based Waves.Exchange.
+* [ProviderCloud](https://github.com/waves-exchange/provider-cloud) developed by Waves.Exchange team uses an email-based Waves.Exchange.
 
 You can also develop your own Provider, see the [Provider Interface](#provider-interface) section below.
 
 ### Signer + ProviderWeb: How It Works
 
-When Signer requests to sign a transaction, ProviderWeb opens an [iframe](https://html.spec.whatwg.org/multipage/iframe-embed-object.html), where the user can review transaction details and confirm or reject it. Upon confirmation, ProviderWeb generates a digital signature. User experience is represented in the following video.
-
- <iframe width="560" height="315" src="https://www.youtube.com/embed/OrcNtEP8XpU?rel=0" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+When Signer requests to sign a transaction, ProviderWeb opens an [iframe](https://html.spec.whatwg.org/multipage/iframe-embed-object.html), where the user can review transaction details and confirm or reject it. Upon confirmation, ProviderWeb generates a digital signature.
 
 <a id="restrictions"></a>
 ## Restrictions
@@ -132,7 +130,7 @@ Add library initialization to your app.
 
    ```js
    import { Signer } from '@waves/signer';
-   import { ProviderWeb} from '@waves.exchange/provider-web';
+   import { ProviderWeb } from '@waves.exchange/provider-web';
    
    const signer = new Signer();
    signer.setProvider(new ProviderWeb());
@@ -142,7 +140,7 @@ Add library initialization to your app.
 
    ```js
    import { Signer } from '@waves/signer';
-   import { ProviderCloud} from '@waves.exchange/provider-cloud';
+   import { ProviderCloud } from '@waves.exchange/provider-cloud';
    
    const signer = new Signer();
    signer.setProvider(new ProviderCloud());
