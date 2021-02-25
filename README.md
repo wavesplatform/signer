@@ -10,20 +10,30 @@
 <a id="overview"></a>
 ## Overview
 
-Waves Signer is a TypeScript/JavaScript library for your web app for interacting with the Waves blockchain. Using Signer you can easily create and sign transactions.
+Waves Signer is a TypeScript/JavaScript library that features signing and broadcasting transactions on behalf of users without asking them for their seed phrases or private keys.
 
-Signer is a protocol for interacting with external Provider library that authenticates users with their accounts and signes transactions. Your web app and Signer itself do not have access to user's private key and SEED phrase.
+### Provider
 
+In order to work with Signer, you need to link an external Provider library. Provider securely stores user's private data. Your web app and Signer itself do not have access to user's private key and seed phrase.
+
+The Provider authenticates user and generates a digital signature.
+
+Signer implements developer-friendly protocol for interacting with Provider as well as broadcasts transactions to the blockchain.
 ![](./_assets/signer.png)
 
 For now, you can use one of the following Providers:
 
 * [ProviderSeed](https://github.com/wavesplatform/provider-seed) developed by Waves team creates user account from SEED. ProviderSeed can be used at the app debugging stage.
-* [ProviderWeb](https://github.com/waves-exchange/provider-web) developed by Waves.Exchange is the wallet software that encrypts and stores user's private key and SEED phrase, making sure that users' funds are protected from hackers and malicious websites.
+* [ProviderWeb](https://github.com/waves-exchange/provider-web) developed by Waves.Exchange team uses an account created or imported into the Waves.Exchange web app via user's private key or seed phrase.
+* [ProviderCloud](https://github.com/waves-exchange/provider-web) developed by Waves.Exchange team uses an email-based Waves.Exchange.
 
-You can also develop your own Provider, see [Provider Interface](#provider-interface).
+You can also develop your own Provider, see the [Provider Interface](#provider-interface) section below.
 
-In code you can use [TypeScript types](https://github.com/wavesplatform/ts-types/blob/master/transactions/index.d.ts).
+### Signer + ProviderWeb: How It Works
+
+When Signer requests to sign a transaction, ProviderWeb opens an [iframe](https://html.spec.whatwg.org/multipage/iframe-embed-object.html), where the user can review transaction details and confirm or reject it. Upon confirmation, ProviderWeb generates a digital signature. User experience is represented in the following video.
+
+ <iframe width="560" height="315" src="https://www.youtube.com/embed/OrcNtEP8XpU?rel=0" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 <a id="restrictions"></a>
 ## Restrictions
@@ -61,6 +71,18 @@ Signer supports all browsers except Brave.
    npm i '@waves.exchange/provider-web'
    ```
 
+* To install ProviderCloud developed by Waves.Exchange, use
+
+   ```bash
+   npm i @waves.exchange/provider-cloud
+   ```
+
+   For Windows, use the following format:
+
+   ```bash
+   npm i '@waves.exchange/provider-cloud'
+   ```
+
 ### 2. Library initialization
 
 Add library initialization to your app.
@@ -68,7 +90,7 @@ Add library initialization to your app.
 * For Testnet & ProviderSeed:
 
    ```js
-   import Signer from '@waves/signer';
+   import { Signer } from '@waves/signer';
    import { ProviderSeed } from '@waves/provider-seed';
    import { libs } from '@waves/waves-transactions';
 
@@ -83,24 +105,47 @@ Add library initialization to your app.
 * For Testnet & Waves.Exchange ProviderWeb:
 
    ```js
-   import Signer from '@waves/signer';
-   import Provider from '@waves.exchange/provider-web';
+   import { Signer } from '@waves/signer';
+   import { ProviderWeb } from '@waves.exchange/provider-web';
    
    const signer = new Signer({
      // Specify URL of the node on Testnet
      NODE_URL: 'https://nodes-testnet.wavesnodes.com'
    });
-   signer.setProvider(new Provider('https://testnet.waves.exchange/signer/'))
+   signer.setProvider(new ProviderWeb('https://testnet.waves.exchange/signer/'))
+   ```
+
+* For Testnet & Waves.Exchange ProviderCloud:
+
+   ```js
+   import { Signer } from '@waves/signer';
+   import { ProviderCloud } from '@waves.exchange/provider-cloud';
+   
+   const signer = new Signer({
+     // Specify URL of the node on Testnet
+     NODE_URL: 'https://nodes-testnet.wavesnodes.com'
+   });
+   signer.setProvider(new ProviderCloud('https://testnet.waves.exchange/signer/'))
    ```
 
 * For Mainnet & Waves.Exchange ProviderWeb:
 
    ```js
-   import Signer from '@waves/signer';
-   import Provider from '@waves.exchange/provider-web';
+   import { Signer } from '@waves/signer';
+   import { ProviderWeb} from '@waves.exchange/provider-web';
    
    const signer = new Signer();
-   signer.setProvider(new Provider());
+   signer.setProvider(new ProviderWeb());
+   ```
+
+* For Mainnet & Waves.Exchange ProviderCloud:
+
+   ```js
+   import { Signer } from '@waves/signer';
+   import { ProviderCloud} from '@waves.exchange/provider-cloud';
+   
+   const signer = new Signer();
+   signer.setProvider(new ProviderCloud());
    ```
 
 After that you will be able to use Signer features in the app.
@@ -155,10 +200,10 @@ Parameters:
    * [getBalance](#getbalance)
    * [getSponsoredBalances](#getsponsoredbalances)
 
-* [Сreate Transactions](create-transactions)
+* [Сreate Transactions](#create-transactions)
 
    * [Common fields](#common-fields)
-   * [How to sign and broadcast transactions](#how-to-sign-and-broadcast-transaction)
+   * [How to sign and broadcast transactions](#how-to-sign-and-broadcast-transactions)
    * [alias](#alias)
    * [burn](#burn)
    * [cancelLease](#cancellease)
@@ -181,7 +226,7 @@ Parameters:
    * [setProvider](#setprovider)
    * [waitTxConfirm](#waittxconfirm)
 
-In code you can use [TypeScript types](https://github.com/wavesplatform/ts-types/blob/master/transactions/index.d.ts).
+In code you can use [TypeScript types](https://github.com/wavesplatform/ts-types/blob/master/transactions/index.ts).
 
 <a id="user-info"></a>
 ### User Info
@@ -275,7 +320,7 @@ const balances = await signer.getBalance();
 
 | Field name | Description |
 | :--- | :--- |
-| assetId | Base58-encoded ID of the asset |
+| assetId | Base58 encoded ID of the asset |
 | assetName | Name of the asset |
 | decimals | Number of decimal places in the asset amount |
 | amount | Amount of asset multiplied by 10^`decimals`. For example, `decimals` of WAVES is 8, so the real amount is multipied by 10^8. `{ "WAVES": 677728840 }` means 6.77728840 |
@@ -287,7 +332,7 @@ const balances = await signer.getBalance();
 <a id="getsponsoredbalances"></a>
 #### getSponsoredBalances
 
-If user logged in, provides balances of sponsored assets in user's portfolio.
+If user logged in, provides balances of sponsored assets in user's portfolio. See [Sponsored Fee](https://docs.waves.tech/en/blockchain/waves-protocol/sponsored-fee).
 
 ```js
 getSponsoredBalances();
@@ -327,7 +372,6 @@ The following methods create transactions (but do not sign or broadcast them):
 * [burn](#burn)
 * [cancelLease](#cancellease)
 * [data](#data)
-* [exchange](#exchange)
 * [invoke](#invoke)
 * [issue](#issue)
 * [lease](#lease)
@@ -349,10 +393,10 @@ Each create transaction method has optional fields that you don't specify manual
 | :--- | :--- | :--- |
 | chainId | 'W'.charCodeAt(0) or 87 means Mainnet<br/>'T'.charCodeAt(0) or 84 means Testnet | Defined by configuration of Waves node that is set in [Constructor](#constructor) |
 | fee | Transaction fee | Calculated automatically as described in [Transaction fee](https://docs.waves.tech/en/blockchain/transaction/transaction-fee) section |
-| proofs | Array of transaction signatures | Added by `sign` or `broadcast` method (see [How to Sign and Broadcast Transactions](#how-to-sign-and-broadcast-transaction)). If you specify a proof manually, it is also added to the array |
-| senderPublicKey | Base58-encoded public key of transaction sender | Returned by [login](#login) method |
+| proofs | Array of transaction signatures | Added by `sign` or `broadcast` method (see [How to Sign and Broadcast Transactions](#how-to-sign-and-broadcast-transactions)). If you specify a proof manually, it is also added to the array |
+| senderPublicKey | Base58 encoded public key of transaction sender | Returned by [login](#login) method |
 
-<a id="how-to-sign-and-broadcast-transaction"></a>
+<a id="how-to-sign-and-broadcast-transactions"></a>
 #### How to Sign and Broadcast Transactions
 
 Each create transaction method returns object that features the `sign` and `broadcast` methods.
@@ -389,7 +433,7 @@ signer.alias({ 'new_alias', })
 <a id="alias"></a>
 #### alias
 
-Creates [alias transaction](https://docs.waves.tech/en/blockchain/transaction-type/alias-transaction).
+Creates [Create Alias transaction](https://docs.waves.tech/en/blockchain/transaction-type/create-alias-transaction).
 
 ```js
 alias(data: {
@@ -399,9 +443,11 @@ alias(data: {
 
 **Parameters:**
 
-| Field name | Default value | Description |
+| Parameter name | Default value | Description |
 | :--- | :--- | :--- |
 | alias* | | Short and easy to remember name of address. See [Alias](https://docs.waves.tech/en/blockchain/account/alias) for more information |
+
+\* Required parameter.
 
 See [Common fields](#common-fields) for other fields description.
 
@@ -420,7 +466,7 @@ const [tx] = await signer
 <a id="burn"></a>
 #### burn
 
-Creates [burn transaction](https://docs.waves.tech/en/blockchain/transaction-type/burn-transaction).
+Creates [Burn transaction](https://docs.waves.tech/en/blockchain/transaction-type/burn-transaction).
 
 ```js
 burn(data: {
@@ -431,12 +477,12 @@ burn(data: {
 
 **Parameters:**
 
-| Field name | Default value | Description |
+| Parameter name | Default value | Description |
 | :--- | :--- | :--- |
-| assetId* | | Base58-encoded ID of the asset to burn |
+| assetId* | | Base58 encoded ID of the asset to burn |
 | quantity* | | Amount of asset multiplied by 10^`decimals`. For example, `decimals` of WAVES is 8, so the real amount is multipied by 10^8. `{ "WAVES": 677728840 }` means 6.77728840 |
 
-\* Required field.
+\* Required parameter.
 
 See [Common fields](#common-fields) for other fields description.
 
@@ -456,7 +502,7 @@ const [tx] = await signer
 <a id="cancellease"></a>
 #### cancelLease
 
-Creates [lease cancel transaction](https://docs.waves.tech/en/blockchain/transaction-type/lease-cancel-transaction).
+Creates [Lease Cancel transaction](https://docs.waves.tech/en/blockchain/transaction-type/lease-cancel-transaction).
 
 ```js
 cancelLease(data: {
@@ -466,11 +512,11 @@ cancelLease(data: {
 
 **Parameters:**
 
-| Field name | Default value | Description |
+| Parameter name | Default value | Description |
 | :--- | :--- | :--- |
-| leasetId* | | Base58-encoded ID of the lease transaction |
+| leasetId* | | Base58 encoded ID of the Lease transaction |
 
-\* Required field.
+\* Required parameter.
 
 See [Common fields](#common-fields) for other fields description.
 
@@ -489,7 +535,7 @@ const [tx] = await signer
 <a id="data"></a>
 #### data
 
-Creates [data](https://docs.waves.tech/en/blockchain/transaction-type/data-transaction) transaction.
+Creates [Data transaction](https://docs.waves.tech/en/blockchain/transaction-type/data-transaction).
 
 ```js
 data(data: [{
@@ -501,13 +547,13 @@ data(data: [{
 
 **Parameters:**
 
-| Field name | Default value | Description |
+| Parameter name | Default value | Description |
 | :--- | :--- | :--- |
 | key* | | Key of a record. Maximum of 100 characters |
 | type | | Type of a record |
 | value* | | Value of a record. Maximum of 5 Kbytes |
 
-\* Required field.
+\* Required parameter.
 
 See [Common fields](#common-fields) for other fields description.
 
@@ -543,7 +589,7 @@ exchange(data: {
 
 **Parameters:**
 
-| Field name | Default value | Description |
+| Parameter name | Default value | Description |
 | :--- | :--- | :--- |
 | buyOrder* | | Key of a record. Maximum of 100 characters |
 | sellOrder* | | Type of a record |
@@ -552,7 +598,7 @@ exchange(data: {
 | buyMatcherFee* | | Value of a record. Maximum of 5 Kbytes |
 | sellMatcher* | | Value of a record. Maximum of 5 Kbytes |
 
-\* Required field.
+\* Required parameter.
 
 See [Common fields](#common-fields) for other fields description.
 
@@ -571,7 +617,7 @@ const [tx] = await signer
 <a id="invoke"></a>
 #### invoke
 
-Creates [invoke scipt transaction](https://docs.waves.tech/en/blockchain/transaction-type/invoke-script-transaction).
+Creates [Invoke Scipt transaction](https://docs.waves.tech/en/blockchain/transaction-type/invoke-script-transaction).
 
 ```js
 invoke(data: {
@@ -594,12 +640,12 @@ invoke(data: {
 
 **Parameters:**
 
-| Field name | Default value | Description |
+| Parameter name | Default value | Description |
 | :--- | :--- | :--- |
-| dApp* | | Base58-encoded address or alias (with `alias:T:` prefix) of the dApp whose script should be invoked |
+| dApp* | | Base58 encoded address or alias (with `alias:T:` prefix) of the dApp whose script should be invoked |
 | fee | | We recommend to specify fee depending on number of action performed by called function (see [Transaction Fee](https://docs.waves.tech/en/blockchain/transaction/transaction-fee)) |
 | payment | | Payments attached to the transaction. Maximum of two payments |
-| payment.assetId* | | Base58-encoded ID of the asset to pay. `WAVES` or `null` means WAVES |
+| payment.assetId* | | Base58 encoded ID of the asset to pay. `WAVES` or `null` means WAVES |
 | payment.amount* | | Amount of asset multiplied by 10^`decimals`. For example, `decimals` of WAVES is 8, so the real amount is multipied by 10^8. `{ "WAVES": 677728840 }` means 6.77728840 |
 | call | Default function should be invoked in the dApp | Parameters for called function |
 | call.function* | | Name of the function that is called |
@@ -608,7 +654,7 @@ invoke(data: {
 | call.args.value* | | Value of argument |
 | feeAssetId | WAVES | Base58 encoded ID of the sponsored asset to pay the fee. See the [Sponsored Fee](https://docs.waves.tech/en/blockchain/waves-protocol/sponsored-fee) article for more information. `null` or omitted field means WAVES |
 
-\* Required field
+\* Required parameter.
 
 See [Common fields](#common-fields) for other fields description.
 
@@ -639,7 +685,7 @@ const [tx] = await signer
 <a id="issue"></a>
 #### issue
 
-Creates [issue transaction](https://docs.waves.tech/en/blockchain/transaction-type/issue-transaction).
+Creates [Issue transaction](https://docs.waves.tech/en/blockchain/transaction-type/issue-transaction).
 
 ```js
 issue(data: {
@@ -654,16 +700,16 @@ issue(data: {
 
 **Parameters:**
 
-| Field name | Default value | Description |
+| Parameter name | Default value | Description |
 | :--- | :--- | :--- |
 | name* | | Asset name |
 | decimals* | | Number of digits in decimal part |
 | quantity* | | Amount of asset multiplied by 10^`decimals` |
 | reissuable* | | `true` – asset reissue is possible.<br>`false` — asset reissue is not possible |
 | description* | | Asset description |
-| script | | Base64-encoded script (with `base64:` prefix) to be attached to to asset |
+| script | | Base64 encoded script (with `base64:` prefix) to be attached to to asset |
 
-\* Required field
+\* Required parameter.
 
 See [Common fields](#common-fields) for other fields description.
 
@@ -686,7 +732,7 @@ const [tx] = await signer
 <a id="lease"></a>
 #### lease
 
-Creates [lease transaction](https://docs.waves.tech/en/blockchain/transaction-type/lease-transaction).
+Creates [Lease transaction](https://docs.waves.tech/en/blockchain/transaction-type/lease-transaction).
 
 ```js
 lease(data: {
@@ -697,12 +743,12 @@ lease(data: {
 
 **Parameters:**
 
-| Field name | Default value | Description |
+| Parameter name | Default value | Description |
 | :--- | :--- | :--- |
 | amount* | | Amount of WAVES multiplied by 10^8. For example, `{ "WAVES": 677728840 }` means 6.77728840 |
-| recipient* | | Base58-encoded [address](https://docs.waves.tech/en/blockchain/account/address) or alias (with `alias:T:` prefix) of the recipient |
+| recipient* | | Base58 encoded [address](https://docs.waves.tech/en/blockchain/account/address) or alias (with `alias:T:` prefix) of the recipient |
 
-\* Required field
+\* Required parameter.
 
 See [Common fields](#common-fields) for other fields description.
 
@@ -722,7 +768,7 @@ const [tx] = await signer
 <a id="masstransfer"></a>
 #### massTransfer
 
-Creates [mass transfer transaction](https://docs.waves.tech/en/blockchain/transaction-type/mass-transfer-transaction).
+Creates [Mass Transfer transaction](https://docs.waves.tech/en/blockchain/transaction-type/mass-transfer-transaction).
 
 ```js
 massTransfer(data: {
@@ -737,15 +783,15 @@ massTransfer(data: {
 
 **Parameters:**
 
-| Field name | Default value | Description |
+| Parameter name | Default value | Description |
 | :--- | :--- | :--- |
-| assetId | WAVES | Base58-encoded ID of the asset to transfer |
+| assetId | WAVES | Base58 encoded ID of the asset to transfer |
 | transfers* | | List of transfers |
-| transfers.amount* | | Amount of asset multiplied by 10^`decimals`. For example, `decimals` of WAVES is 8, so the real amount is multipied by 10^8. `{ "WAVES": 677728840 }` means 6.77728840Amount of  multiplied by 10^8. |
+| transfers.amount* | | Amount of asset multiplied by 10^`decimals`. For example, `decimals` of WAVES is 8, so the real amount is multipied by 10^8. `{ "WAVES": 677728840 }` means 6.77728840 |
 | transfers.recipient* | | Base58 encoded [address](https://docs.waves.tech/en/blockchain/account/address) or alias (with `alias:T:` prefix) of the recipient |
 | attachment | | Optional binary data base58 encoded. This field is often used to attach a comment to the transaction. The maximum data size is 140 bytes |
 
-\* Required field
+\* Required parameter.
 
 See [Common fields](#common-fields) for other fields description.
 
@@ -775,7 +821,7 @@ const [tx] = await signer
 <a id="reissue"></a>
 #### reissue
 
-Creates [reissue transaction](https://docs.waves.tech/en/blockchain/transaction-type/reissue-transaction).
+Creates [Reissue transaction](https://docs.waves.tech/en/blockchain/transaction-type/reissue-transaction).
 
 ```js
 reissue(data: {
@@ -787,13 +833,13 @@ reissue(data: {
 
 **Parameters:**
 
-| Field name | Default value | Description |
+| Parameter name | Default value | Description |
 | :--- | :--- | :--- |
-| assetId* | | Base58-encoded ID of the asset to reissue |
+| assetId* | | Base58 encoded ID of the asset to reissue |
 | quantity* | | Amount of asset multiplied by 10^`decimals` to reissue |
 | reissuable* | | `true` – asset reissue is possible.<br>`false` — asset reissue is not possible |
 
-\* Required field
+\* Required parameter.
 
 See [Common fields](#common-fields) for other fields description.
 
@@ -814,7 +860,7 @@ const [tx] = await signer
 <a id="setassetscript"></a>
 #### setAssetScript
 
-Creates [set asset script transaction](https://docs.waves.tech/en/blockchain/transaction-type/set-asset-script-transaction).
+Creates [Set Asset Script transaction](https://docs.waves.tech/en/blockchain/transaction-type/set-asset-script-transaction).
 
 ```js
 setAssetScript(data: {
@@ -825,12 +871,12 @@ setAssetScript(data: {
 
 **Parameters:**
 
-| Field name | Default value | Description |
+| Parameter name | Default value | Description |
 | :--- | :--- | :--- |
-| assetId* | | Base58-encoded ID of the asset |
-| script | | Base64-encoded script (with `base64:` prefix) to be attached to the asset |
+| assetId* | | Base58 encoded ID of the asset |
+| script | | Base64 encoded script (with `base64:` prefix) to be attached to the asset |
 
-\* Required field
+\* Required parameter.
 
 See [Common fields](#common-fields) for other fields description.
 
@@ -850,7 +896,7 @@ const [tx] = await signer
 <a id="setscript"></a>
 #### setScript
 
-Creates [set script transaction](https://docs.waves.tech/en/blockchain/transaction-type/set-script-transaction).
+Creates [Set Script transaction](https://docs.waves.tech/en/blockchain/transaction-type/set-script-transaction).
 
 ```js
 setScript(data: {
@@ -860,7 +906,7 @@ setScript(data: {
 
 **Parameters:**
 
-| Field name | Default value | Description |
+| Parameter name | Default value | Description |
 | :--- | :--- | :--- |
 | script | | Base64 encoded [account script](https:/docs.waves.tech/en/ride/script/script-types/account-script) or [dApp script](https://docs.waves.tech/en/ride/script/script-types/dapp-script) (with `base64:` prefix) to be attached to the user account. `null` means cancelling the script |
 
@@ -881,7 +927,7 @@ const [tx] = await signer
 <a id="sponsorship"></a>
 #### sponsorship
 
-Creates sponsorship transaction.
+Creates [Sponsor Fee transaction](https:/docs.waves.tech/en/blockchain/waves-protocol/sponsored-fee).
 
 ```js
 sponsorship(data: {
@@ -892,11 +938,12 @@ sponsorship(data: {
 
 **Parameters:**
 
-| Field name | Default value | Description |
+| Parameter name | Default value | Description |
 | :--- | :--- | :--- |
-| assetId* | | Base58-encoded ID of the asset |
+| assetId* | | Base58 encoded ID of the asset |
 | minSponsoredAssetFee | | Required amount of sponsored token to be charged to users (per 0.001 WAVES) multiplied by 10^`decimals` |
-\* Required field
+
+\* Required parameter.
 
 See [Common fields](#common-fields) for other fields description.
 
@@ -916,7 +963,7 @@ const [tx] = await signer
 <a id="transfer"></a>
 #### transfer
 
-Creates [transfer transaction](https://docs.waves.tech/en/blockchain/transaction-type/transfer-transaction).
+Creates [Transfer transaction](https://docs.waves.tech/en/blockchain/transaction-type/transfer-transaction).
 
 ```js
 transfer(data: {
@@ -930,15 +977,15 @@ transfer(data: {
 
 **Parameters:**
 
-| Field name | Default value | Description |
+| Parameter name | Default value | Description |
 | :--- | :--- | :--- |
-| recipient* | | Base58-encoded [address](https://docs.waves.tech/en/blockchain/account/address) or alias (with `alias:T:` prefix) of the recipient |
+| recipient* | | Base58 encoded [address](https://docs.waves.tech/en/blockchain/account/address) or alias (with `alias:T:` prefix) of the recipient |
 | amount* | | Amount of asset multiplied by 10^`decimals`. For example, `decimals` of WAVES is 8, so the real amount is multipied by 10^8. `{ "WAVES": 677728840 }` means 6.77728840 |
 | assetId | WAVES | Base58 encoded ID of the asset to transfer. `null` or omitted field means WAVES |
 | attachment | | Optional binary data base58 encoded. This field is often used to attach a comment to the transaction. The maximum data size is 140 bytes |
 | feeAssetId | WAVES | Base58 encoded ID of the sponsored asset to pay the fee. See the [Sponsored Fee](https://docs.waves.tech/en/blockchain/waves-protocol/sponsored-fee) article for more information. `null` or omitted field means WAVES |
 
-\* Required field
+\* Required parameter.
 
 See [Common fields](#common-fields) for other fields description.
 
@@ -972,11 +1019,11 @@ batch([{
 
 **Parameters:**
 
-| Field name | Default value | Description |
+| Parameter name | Default value | Description |
 | :--- | :--- | :--- |
 | type* | | [Transaction type ID](https://docs.waves.tech/en/blockchain/transaction-type/) |
 
-\* Required field
+\* Required parameter.
 
 **Usage:**
 
@@ -1019,13 +1066,13 @@ broadcast(tx,[options])
 
 **Parameters:**
 
-| Field name | Default value | Description |
+| Parameter name | Default value | Description |
 | :--- | :--- | :--- |
 | tx* | | Signed transaction or array of signed transactions |
 | options.chain | false | [Type: boolean] Send the next transaction only after the previous transaction is put in the blockchain and confirmed |
 | options.confirmations | -1 | Number of confirmations after that the Promise is resolved:<br>less than 0 – Promise is resolved when the transaction is put in UTX pool<br>0 – Promise is resolved when the block that contains the transaction is added to the blockchain<br>1 – Promise is resolved when the next block is added to the blockchain and so on |
 
-\* Required field
+\* Required parameter.
 
 **Usage:**
 
@@ -1072,11 +1119,11 @@ setProvider(provider);
 
 **Parameters:**
 
-| Field name | Default value | Description |
+| Parameter name | Default value | Description |
 | :--- | :--- | :--- |
 | provider* | | Object that features Provider interface |
 
-\* Required field
+\* Required parameter.
 
 **Usage:**
 ```js
@@ -1094,12 +1141,12 @@ waitTxConfirm(tx, confirmations)
 
 **Parameters:**
 
-| Field name | Default value | Description |
+| Parameter name | Default value | Description |
 | :--- | :--- | :--- |
 | tx* | | Transaction or array transactions that are sent to the blockchain |
 | confirmations* | | Number of blocks added to the blockchain after the block that contains the transaction |
 
-\* Required field
+\* Required parameter.
 
 **Usage:**
 ```ts
@@ -1120,7 +1167,48 @@ signer.waitTxConfirm(tx, 1).then((tx) => {
 Provider should feature the following interface:
 
 ```js
-interface IProvider {
+interface Provider {
+
+    /**
+     * Signer subscribes to login events in the Provider
+     * When triggered, the Provider passes user data: address and public key 
+     * For further unsubscribe Signer calls `off`
+     */
+    on(
+        event: 'login',
+        handler:({ address: string; publicKey: string }) => any 
+    ) => Provider;
+
+    /**
+     * Signer subscribes to logout events in the Provider
+     * For further unsubscribe Signer calls `off`
+     */
+    on( event: 'logout', handler:() => any) => Provider;
+
+    /**
+     * Signer subscribes to the first login event in the Provider
+     * When triggered, the Provider passes user data: address and public key,
+     *   then cancels the subscription
+     */
+    once(
+        event: 'login',
+        handler:({ address: string; publicKey: string }) => any 
+    ) => Provider;
+
+    /**
+     * Signer subscribes to the first logout event in the Provider
+     * When triggered, the Provider cancels the subscription
+     */
+    once( event: 'logout', handler:() => any) => Provider;
+
+    /**
+     * Signer unsubscribes from events previously subscribed to
+     */
+    off(
+        event: 'login',
+        handler:({ address: string; publicKey: string }) => any 
+    ) => Provider;
+    off( event: 'logout', handler:() => any) => Provider;
 
     /**
      * Sets connection to Waves node
@@ -1129,9 +1217,9 @@ interface IProvider {
     connect(options: {NODE_URL: string, NETWORK_BYTE: number}): Promise<void>;
 
     /**
-     * Authenticates user with his/her account
+     * Authenticates user with their account
      */
-    login(): Promise<{addres: string, publicKey: string}>;
+    login(): Promise<{address: string, publicKey: string}>;
 
     /**
      * Logs user out
@@ -1139,9 +1227,37 @@ interface IProvider {
     logout(): Promise<void>;
 
     /**
+     * Signs custom message
+     * @param data
+     */
+    signMessage(data: string | number): Promise<string>;
+
+    /**
+     * Signs typed data
+     * @param data
+     */
+    signTypedData(data: Array<TypedData>): Promise<string>;
+
+    /**
      * Signs transactions in array
+     * Here SignedTx<T> is any transaction, T[] is an array of any transactions
      * @param list
      */
-    sign(list: Array<TTransactionParamWithType>): Promise<Array<TTransactionWithProofs<TLong> & IWithId>>;
+    sign<T extends SignerTx>(toSign: T[]): Promise<SignedTx<T>>;
+    sign<T extends Array<SignerTx>>(toSign: T): Promise<SignedTx<T>>;
 }
 ```
+
+## Error Сodes
+
+| Error's class                  | Code | Type           | Example |
+|:------------------------------|:-----|:---------------|:--------|
+| SignerOptionsError            | 1000 | validation     | Invalid signer options: NODE_URL, debug |
+| SignerNetworkByteError        | 1001 | network        | Could not fetch network from {NODE_URL}: Failed to fetch |
+| SignerAuthError               | 1002 | authorization  | Can't use method: getBalance. User must be logged in |
+| SignerProviderConnectError    | 1003 | network        | Could not connect the Provider |
+| SignerEnsureProviderError     | 1004 | provider       | Can't use method: login. Provider instance is missing<br/>🛈 Possible reasons: the user is in Incognito mode or has disabled cookies |
+| SignerProviderInterfaceError  | 1005 | validation     | Invalid provider properties: connect |
+| SignerProviderInternalError   | 1006 | provider       | Provider internal error: {...}. This is not error of signer. |
+| SignerApiArgumentsError       | 1007 | validation     | Validation error for invoke transaction: {...}. Invalid arguments: senderPublicKey |
+| SignerNetworkError            | 1008 | network        | Network Error |
