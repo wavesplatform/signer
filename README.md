@@ -6,6 +6,7 @@
 * [Constructor](#constructor)
 * [Methods](#methods)
 * [Provider Interface](#provider-interface)
+* [Error Codes](#error-codes)
 
 <a id="overview"></a>
 ## Overview

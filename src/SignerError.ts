@@ -31,7 +31,7 @@ const errorTemplate = (error: ErrorDetails) => {
         `    Type: ${error.type}`,
         `    Code: ${error.code}`,
         details,
-        `    More info: ${REPOSITORY_URL}/README.md#error-codes`,
+        `    More info: ${REPOSITORY_URL}/blob/master/README.md#error-codes`,
     ]
         .filter(Boolean)
         .join('\n');
