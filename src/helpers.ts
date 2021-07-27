@@ -10,6 +10,7 @@ import {
     SignerProviderConnectError,
     SignerProviderInterfaceError,
     SignerProviderInternalError,
+    SignerStorageError,
 } from './SignerError';
 import { IConsole } from '@waves/client-logs';
 
@@ -23,6 +24,7 @@ const ERRORS_MAP = {
     [ERRORS.PROVIDER_INTERNAL]: SignerProviderInternalError,
     [ERRORS.NOT_AUTHORIZED]: SignerAuthError,
     [ERRORS.NETWORK_ERROR]: SignerNetworkError,
+    [ERRORS.STORAGE_ERROR]: SignerStorageError,
 };
 
 export type ErrorHandler = <T extends keyof typeof ERRORS_MAP>(

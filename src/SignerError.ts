@@ -10,6 +10,7 @@ export const ERRORS = {
     PROVIDER_INTERNAL: 1006 as 1006,
     API_ARGUMENTS: 1007 as 1007,
     NETWORK_ERROR: 1008 as 1008,
+    STORAGE_ERROR: 1009 as 1009,
 };
 
 type ErrorDetails = {
@@ -174,6 +175,19 @@ export class SignerNetworkError extends SignerError {
             type: 'network',
             details: `Error connect to ${''}`,
             errorArgs: {},
+        });
+    }
+}
+
+export class SignerStorageError extends SignerError {
+    constructor(message: string) {
+        super({
+            code: ERRORS.STORAGE_ERROR,
+            title: 'Authorization error',
+            type: 'authorization',
+            details:
+                'Local storage is not available! It is possible that the Browser is in incognito mode!',
+            errorArgs: { errorMessage: message },
         });
     }
 }

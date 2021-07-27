@@ -307,7 +307,7 @@ export class Signer {
                 throw err;
             }
 
-            const error = this._handleError(ERRORS.PROVIDER_INTERNAL, err.message);
+            const error = this._handleError(ERRORS.STORAGE_ERROR, err.message);
 
             throw error;
         }
