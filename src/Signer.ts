@@ -82,17 +82,16 @@ export class Signer {
 
     constructor(options?: Partial<SignerOptions>) {
         this._logger = makeConsole(
-            makeOptions(options?.LOG_LEVEL ?? 'production', 'Signer'),
+            makeOptions(options?.LOG_LEVEL ?? 'production', 'Signer')
         );
 
         this._handleError = errorHandlerFactory(this._logger);
 
         this._options = { ...DEFAULT_OPTIONS, ...(options || {}) };
 
-        const {
-            isValid,
-            invalidOptions,
-        } = validateSignerOptions(this._options);
+        const { isValid, invalidOptions } = validateSignerOptions(
+            this._options
+        );
 
         if (!isValid) {
             const error = this._handleError(ERRORS.SIGNER_OPTIONS, [
@@ -109,28 +108,30 @@ export class Signer {
                     node: this._options.NODE_URL,
                 },
             ]);
+
             this._logger.error(error);
 
             return error;
-        }
+        };
 
         try {
-            this._networkBytePromise = getNetworkByte(this._options.NODE_URL)
-                .catch((e) => Promise.reject(makeNetworkByteError(e)));
+            this._networkBytePromise = getNetworkByte(
+                this._options.NODE_URL
+            ).catch((e) => Promise.reject(makeNetworkByteError(e)));
         } catch (e) {
             throw makeNetworkByteError(e);
         }
 
         this._logger.info(
             'Signer instance has been successfully created. Options: ',
-            options,
+            options
         );
     }
 
     @ensureProvider
     public on<EVENT extends keyof AuthEvents>(
         event: EVENT,
-        handler: Handler<AuthEvents[EVENT]>,
+        handler: Handler<AuthEvents[EVENT]>
     ): Signer {
         this.currentProvider!.on(event, handler);
         this._logger.info(`Handler for "${event}" has been added.`);
@@ -141,7 +142,7 @@ export class Signer {
     @ensureProvider
     public once<EVENT extends keyof AuthEvents>(
         event: EVENT,
-        handler: Handler<AuthEvents[EVENT]>,
+        handler: Handler<AuthEvents[EVENT]>
     ): Signer {
         this.currentProvider!.once(event, handler);
 
@@ -153,7 +154,7 @@ export class Signer {
     @ensureProvider
     public off<EVENT extends keyof AuthEvents>(
         event: EVENT,
-        handler: Handler<AuthEvents[EVENT]>,
+        handler: Handler<AuthEvents[EVENT]>
     ): Signer {
         this.currentProvider!.off(event, handler);
 
@@ -164,15 +165,15 @@ export class Signer {
 
     public broadcast<T extends SignerTx>(
         toBroadcast: SignedTx<T>,
-        options?: BroadcastOptions,
+        options?: BroadcastOptions
     ): Promise<BroadcastedTx<SignedTx<T>>>;
     public broadcast<T extends SignerTx>(
         toBroadcast: Array<SignedTx<T>>,
-        options?: BroadcastOptions,
+        options?: BroadcastOptions
     ): Promise<BroadcastedTx<SignedTx<T>[]>>;
     public broadcast<T extends SignerTx>(
         toBroadcast: SignedTx<T> | Array<SignedTx<T>>,
-        options?: BroadcastOptions,
+        options?: BroadcastOptions
     ): Promise<BroadcastedTx<SignedTx<T>> | BroadcastedTx<Array<SignedTx<T>>>> {
         // @ts-ignore
         return broadcast(this._options.NODE_URL, toBroadcast, options); // TODO поправить тип в broadcast
@@ -201,10 +202,9 @@ export class Signer {
         const providerValidation = validateProviderInterface(provider);
 
         if (!providerValidation.isValid) {
-            const error = this._handleError(
-                ERRORS.PROVIDER_INTERFACE,
-                [providerValidation.invalidProperties],
-            );
+            const error = this._handleError(ERRORS.PROVIDER_INTERFACE, [
+                providerValidation.invalidProperties,
+            ]);
 
             throw error;
         }
@@ -212,27 +212,30 @@ export class Signer {
         this.currentProvider = provider;
         this._logger.info('Provider has been set.');
 
-        this._connectPromise =
-            this._networkBytePromise
-                .then(byte => {
-                    return provider.connect({
-                        NETWORK_BYTE: byte,
-                        NODE_URL: this._options.NODE_URL,
-                    })
-                        .then(() => {
-                            this._logger.info('Provider has conneced to node.');
-                            return provider;
-                        })
-                        .catch((e) => {
-                            const error = this._handleError(ERRORS.PROVIDER_CONNECT, [{
-                                error: e.message,
-                                node: this._options.NODE_URL,
-                            }]);
+        this._connectPromise = this._networkBytePromise.then((byte) => {
+            return provider
+                .connect({
+                    NETWORK_BYTE: byte,
+                    NODE_URL: this._options.NODE_URL,
+                })
+                .then(() => {
+                    this._logger.info('Provider has conneced to node.');
 
-                            this._logger.error(error);
-                            return Promise.reject(error);
-                        });
+                    return provider;
+                })
+                .catch((e) => {
+                    const error = this._handleError(ERRORS.PROVIDER_CONNECT, [
+                        {
+                            error: e.message,
+                            node: this._options.NODE_URL,
+                        },
+                    ]);
+
+                    this._logger.error(error);
+
+                    return Promise.reject(error);
                 });
+        });
     }
 
     /**
@@ -249,7 +252,7 @@ export class Signer {
         return Promise.all([
             fetchBalanceDetails(
                 this._options.NODE_URL,
-                this._userData!.address,
+                this._userData!.address
             ).then((data) => ({
                 assetId: 'WAVES',
                 assetName: 'Waves',
@@ -262,7 +265,7 @@ export class Signer {
             })),
             fetchAssetsBalance(
                 this._options.NODE_URL,
-                this._userData!.address,
+                this._userData!.address
             ).then((data) =>
                 data.balances.map((item) => ({
                     assetId: item.assetId,
@@ -282,7 +285,7 @@ export class Signer {
                         (item.minSponsoredAssetFee || 0) < item.balance
                             ? item.minSponsoredAssetFee
                             : null,
-                })),
+                }))
             ),
         ]).then(([waves, assets]) => [waves, ...assets]);
     }
@@ -307,7 +310,23 @@ export class Signer {
                 throw err;
             }
 
-            const error = this._handleError(ERRORS.STORAGE_ERROR, err.message);
+            if (
+                err ===
+                "SecurityError: Failed to read the 'localStorage' property from " +
+                    "'Window': Access is denied for this document."
+            ) {
+                const error = this._handleError(
+                    ERRORS.STORAGE_ERROR,
+                    err.message
+                );
+
+                throw error;
+            }
+
+            const error = this._handleError(
+                ERRORS.PROVIDER_INTERNAL,
+                err.message
+            );
 
             throw error;
         }
@@ -337,7 +356,7 @@ export class Signer {
      */
     public signMessage(message: string | number): Promise<string> {
         return this._connectPromise.then((provider) =>
-            provider.signMessage(message),
+            provider.signMessage(message)
         );
     }
 
@@ -347,7 +366,7 @@ export class Signer {
      */
     public signTypedData(data: Array<TypedData>): Promise<string> {
         return this._connectPromise.then((provider) =>
-            provider.signTypedData(data),
+            provider.signTypedData(data)
         );
     }
 
@@ -356,7 +375,7 @@ export class Signer {
      */
     public getSponsoredBalances(): Promise<Balance[]> {
         return this.getBalance().then((balance) =>
-            balance.filter((item) => !!item.sponsorship),
+            balance.filter((item) => !!item.sponsorship)
         );
     }
 
@@ -380,7 +399,7 @@ export class Signer {
     }
 
     private readonly _issue = (txList: SignerTx[]) => (
-        data: IssueArgs,
+        data: IssueArgs
     ): ChainApi1stCall<SignerIssueTx> => {
         return this._createPipelineAPI<SignerIssueTx>(txList, {
             ...data,
@@ -393,7 +412,7 @@ export class Signer {
     }
 
     private readonly _transfer = (txList: SignerTx[]) => (
-        data: TransferArgs,
+        data: TransferArgs
     ): ChainApi1stCall<SignerTransferTx> => {
         return this._createPipelineAPI<SignerTransferTx>(txList, {
             ...data,
@@ -406,7 +425,7 @@ export class Signer {
     }
 
     private readonly _reissue = (txList: SignerTx[]) => (
-        data: ReissueArgs,
+        data: ReissueArgs
     ): ChainApi1stCall<SignerReissueTx> => {
         return this._createPipelineAPI<SignerReissueTx>(txList, {
             ...data,
@@ -419,7 +438,7 @@ export class Signer {
     }
 
     private readonly _burn = (txList: SignerTx[]) => (
-        data: BurnArgs,
+        data: BurnArgs
     ): ChainApi1stCall<SignerBurnTx> => {
         return this._createPipelineAPI<SignerBurnTx>(txList, {
             ...data,
@@ -432,7 +451,7 @@ export class Signer {
     }
 
     private readonly _lease = (txList: SignerTx[]) => (
-        data: LeaseArgs,
+        data: LeaseArgs
     ): ChainApi1stCall<SignerLeaseTx> => {
         return this._createPipelineAPI<SignerLeaseTx>(txList, {
             ...data,
@@ -445,7 +464,7 @@ export class Signer {
     }
 
     private readonly _exchange = (txList: SignerTx[]) => (
-        data: ExchangeArgs,
+        data: ExchangeArgs
     ): ChainApi1stCall<SignerExchangeTx> => {
         return this._createPipelineAPI<SignerExchangeTx>(txList, {
             ...data,
@@ -454,13 +473,13 @@ export class Signer {
     };
 
     public cancelLease(
-        data: CancelLeaseArgs,
+        data: CancelLeaseArgs
     ): ChainApi1stCall<SignerCancelLeaseTx> {
         return this._cancelLease([])(data);
     }
 
     private readonly _cancelLease = (txList: SignerTx[]) => (
-        data: CancelLeaseArgs,
+        data: CancelLeaseArgs
     ): ChainApi1stCall<SignerCancelLeaseTx> => {
         return this._createPipelineAPI<SignerCancelLeaseTx>(txList, {
             ...data,
@@ -473,7 +492,7 @@ export class Signer {
     }
 
     private readonly _alias = (txList: SignerTx[]) => (
-        data: AliasArgs,
+        data: AliasArgs
     ): ChainApi1stCall<SignerAliasTx> => {
         return this._createPipelineAPI<SignerAliasTx>(txList, {
             ...data,
@@ -482,13 +501,13 @@ export class Signer {
     };
 
     public massTransfer(
-        data: MassTransferArgs,
+        data: MassTransferArgs
     ): ChainApi1stCall<SignerMassTransferTx> {
         return this._massTransfer([])(data);
     }
 
     private readonly _massTransfer = (txList: SignerTx[]) => (
-        data: MassTransferArgs,
+        data: MassTransferArgs
     ): ChainApi1stCall<SignerMassTransferTx> => {
         return this._createPipelineAPI<SignerMassTransferTx>(txList, {
             ...data,
@@ -501,7 +520,7 @@ export class Signer {
     }
 
     private readonly _data = (txList: SignerTx[]) => (
-        data: DataArgs,
+        data: DataArgs
     ): ChainApi1stCall<SignerDataTx> => {
         return this._createPipelineAPI<SignerDataTx>(txList, {
             ...data,
@@ -510,13 +529,13 @@ export class Signer {
     };
 
     public sponsorship(
-        data: SponsorshipArgs,
+        data: SponsorshipArgs
     ): ChainApi1stCall<SignerSponsorshipTx> {
         return this._sponsorship([])(data);
     }
 
     private readonly _sponsorship = (txList: SignerTx[]) => (
-        sponsorship: SponsorshipArgs,
+        sponsorship: SponsorshipArgs
     ): ChainApi1stCall<SignerSponsorshipTx> => {
         return this._createPipelineAPI<SignerSponsorshipTx>(txList, {
             ...sponsorship,
@@ -529,7 +548,7 @@ export class Signer {
     }
 
     private readonly _setScript = (txList: SignerTx[]) => (
-        setScript: SetScriptArgs,
+        setScript: SetScriptArgs
     ): ChainApi1stCall<SignerSetScriptTx> => {
         return this._createPipelineAPI<SignerSetScriptTx>(txList, {
             ...setScript,
@@ -538,13 +557,13 @@ export class Signer {
     };
 
     public setAssetScript(
-        data: SetAssetScriptArgs,
+        data: SetAssetScriptArgs
     ): ChainApi1stCall<SignerSetAssetScriptTx> {
         return this._setAssetScript([])(data);
     }
 
     private readonly _setAssetScript = (txList: SignerTx[]) => (
-        data: SetAssetScriptArgs,
+        data: SetAssetScriptArgs
     ): ChainApi1stCall<SignerSetAssetScriptTx> => {
         return this._createPipelineAPI<SignerSetAssetScriptTx>(txList, {
             ...data,
@@ -557,7 +576,7 @@ export class Signer {
     }
 
     private readonly _invoke = (txList: SignerTx[]) => (
-        data: InvokeArgs,
+        data: InvokeArgs
     ): ChainApi1stCall<SignerInvokeTx> => {
         return this._createPipelineAPI<SignerInvokeTx>(txList, {
             ...data,
@@ -572,22 +591,22 @@ export class Signer {
      */
     public waitTxConfirm<T extends Transaction>(
         tx: T,
-        confirmations: number,
+        confirmations: number
     ): Promise<T>;
     public waitTxConfirm<T extends Transaction>(
         tx: T[],
-        confirmations: number,
+        confirmations: number
     ): Promise<T[]>;
     public waitTxConfirm<T extends Transaction>(
         tx: T | T[],
-        confirmations: number,
+        confirmations: number
     ): Promise<T | T[]> {
         return wait(this._options.NODE_URL, tx as any, { confirmations }); // TODO Fix types
     }
 
     private _createPipelineAPI<T extends SignerTx>(
         prevCallTxList: SignerTx[],
-        signerTx: T,
+        signerTx: T
     ): ChainApi1stCall<T> {
         const _this = this;
         const txs = prevCallTxList.length
@@ -615,9 +634,11 @@ export class Signer {
             } as any),
             sign: () => this._sign<T>(txs as any),
             broadcast: function(options?: BroadcastOptions) {
-                return this.sign()
-                    // @ts-ignore
-                    .then((txs) => _this.broadcast(txs, options)) as any;
+                return (
+                    this.sign()
+                        // @ts-ignore
+                        .then((txs) => _this.broadcast(txs, options)) as any
+                );
             },
         };
     }
@@ -625,7 +646,7 @@ export class Signer {
     private _validate<T>(toSign: T): { isValid: boolean; errors: string[] };
     private _validate<T>(toSign: T[]): { isValid: boolean; errors: string[] };
     private _validate<T extends SignerTx>(
-        toSign: T | T[],
+        toSign: T | T[]
     ): { isValid: boolean; errors: string[] } {
         const signerTxs = Array.isArray(toSign) ? toSign : [toSign];
 
@@ -634,7 +655,7 @@ export class Signer {
             Object.keys(argsValidators).includes(String(type));
 
         const unknownTxs = signerTxs.filter(
-            ({ type }) => !knownTxPredicate(type),
+            ({ type }) => !knownTxPredicate(type)
         );
         const knownTxs = signerTxs.filter(({ type }) => knownTxPredicate(type));
 
@@ -651,14 +672,14 @@ export class Signer {
                     ...invalidTxs.map(
                         ({ transaction, method: scope, invalidFields }) =>
                             `Validation error for ${scope} transaction: ${JSON.stringify(
-                                transaction,
-                            )}. Invalid arguments: ${invalidFields?.join(', ')}`,
+                                transaction
+                            )}. Invalid arguments: ${invalidFields?.join(', ')}`
                     ),
                     ...unknownTxs.map(
                         (tx) =>
                             `Validation error for transaction ${JSON.stringify(
-                                tx,
-                            )}. Unknown transaction type: ${tx.type}`,
+                                tx
+                            )}. Unknown transaction type: ${tx.type}`
                     ),
                 ],
             };
@@ -668,21 +689,18 @@ export class Signer {
     private _sign<T extends SignerTx>(toSign: T): Promise<SignedTx<T>>;
     private _sign<T extends SignerTx>(toSign: T[]): Promise<[SignedTx<T>]>;
     @catchProviderError
-    private _sign<T extends SignerTx>(
-        toSign: T[],
-    ): Promise<SignedTx<T>[]> {
+    private _sign<T extends SignerTx>(toSign: T[]): Promise<SignedTx<T>[]> {
         const validation = this._validate(toSign);
 
         if (validation.isValid) {
             return this._connectPromise.then(
-                (provider) => provider.sign(toSign as any),
+                (provider) => provider.sign(toSign as any)
                 // any fixes "Expression produces a union type that is too complex to
             );
         } else {
-            const error = this._handleError(
-                ERRORS.API_ARGUMENTS,
-                [validation.errors],
-            );
+            const error = this._handleError(ERRORS.API_ARGUMENTS, [
+                validation.errors,
+            ]);
 
             throw error;
         }
