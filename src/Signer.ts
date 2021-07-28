@@ -310,23 +310,9 @@ export class Signer {
                 throw err;
             }
 
-            if (
-                err ===
-                "SecurityError: Failed to read the 'localStorage' property from " +
-                    "'Window': Access is denied for this document."
-            ) {
-                const error = this._handleError(
-                    ERRORS.STORAGE_ERROR,
-                    err.message
-                );
-
-                throw error;
-            }
-
-            const error = this._handleError(
-                ERRORS.PROVIDER_INTERNAL,
-                err.message
-            );
+            const error = this._handleError(ERRORS.PROVIDER_INTERNAL, [
+                err.message,
+            ]);
 
             throw error;
         }
