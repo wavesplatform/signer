@@ -17,12 +17,13 @@ type ErrorDetails = {
     title: string;
     type: string;
     details?: string;
-    errorArgs: any;
+    errorArgs?: any;
 };
 
 const errorTemplate = (error: ErrorDetails) => {
-    const details = error.details
-        ? `    Details: ${error.details}`
+    const details = error.details ? `    Details: ${error.details}` : undefined;
+    const errorArgs = error.errorArgs
+        ? `    ErrorArgs: ${error.errorArgs}`
         : undefined;
 
     return [
@@ -30,6 +31,7 @@ const errorTemplate = (error: ErrorDetails) => {
         `    Title: ${error.title}`,
         `    Type: ${error.type}`,
         `    Code: ${error.code}`,
+        errorArgs,
         details,
         `    More info: ${REPOSITORY_URL}/README.md#error-codes`,
     ]
@@ -101,7 +103,7 @@ export class SignerProviderInterfaceError extends SignerError {
             title: 'Invalid Provider interface',
             type: 'validation',
             details: `\n        Invalid provider properties: ${invalidProperties.join(
-                ', ',
+                ', '
             )}`,
             errorArgs: invalidProperties,
         });
@@ -144,7 +146,6 @@ export class SignerProviderInternalError extends SignerError {
             title: 'Provider internal error',
             type: 'provider',
             details: `Provider internal error: ${message}. This is not error of signer.`,
-            errorArgs: { errorMessage: message },
         });
 
         Object.setPrototypeOf(this, SignerProviderConnectError.prototype);
