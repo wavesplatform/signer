@@ -620,11 +620,14 @@ export class Signer {
             } as any),
             sign: () => this._sign<T>(txs as any),
             broadcast: function(options?: BroadcastOptions) {
-                return (
-                    this.sign()
+                if (_this.currentProvider?.isSignAndBroadcastByProvider === true) {
+                    return _this.currentProvider
+                        .sign(txs);
+                } else {
+                    return this.sign()
                         // @ts-ignore
-                        .then((txs) => _this.broadcast(txs, options)) as any
-                );
+                        .then((txs) => _this.broadcast(txs, options)) as any;
+                }
             },
         };
     }
