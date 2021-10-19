@@ -8,6 +8,7 @@ import {
     SignerNetworkError,
     SignerOptionsError,
     SignerProviderConnectError,
+    SignerProviderSignIsNotSupport,
     SignerProviderInterfaceError,
     SignerProviderInternalError,
 } from './SignerError';
@@ -19,6 +20,7 @@ const ERRORS_MAP = {
     [ERRORS.PROVIDER_INTERFACE]: SignerProviderInterfaceError,
     [ERRORS.API_ARGUMENTS]: SignerApiArgumentsError,
     [ERRORS.PROVIDER_CONNECT]: SignerProviderConnectError,
+    [ERRORS.PROVIDER_SIGN_NOT_SUPPORTED]: SignerProviderSignIsNotSupport,
     [ERRORS.ENSURE_PROVIDER]: SignerEnsureProviderError,
     [ERRORS.PROVIDER_INTERNAL]: SignerProviderInternalError,
     [ERRORS.NOT_AUTHORIZED]: SignerAuthError,

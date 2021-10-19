@@ -10,6 +10,7 @@ export const ERRORS = {
     PROVIDER_INTERNAL: 1006 as 1006,
     API_ARGUMENTS: 1007 as 1007,
     NETWORK_ERROR: 1008 as 1008,
+    PROVIDER_SIGN_NOT_SUPPORTED: 1009 as 1009,
 };
 
 type ErrorDetails = {
@@ -122,6 +123,19 @@ export class SignerProviderConnectError extends SignerError {
         });
 
         Object.setPrototypeOf(this, SignerProviderConnectError.prototype);
+    }
+}
+
+export class SignerProviderSignIsNotSupport extends SignerError {
+    constructor({ error, node }: { error: string; node: string }) {
+        super({
+            code: ERRORS.PROVIDER_SIGN_NOT_SUPPORTED,
+            title: 'Method sign is not support for this provider. Use broadcats instead',
+            type: 'validation',
+            errorArgs: { error, node },
+        });
+
+        Object.setPrototypeOf(this, SignerProviderSignIsNotSupport.prototype);
     }
 }
 

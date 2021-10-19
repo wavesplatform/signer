@@ -681,6 +681,15 @@ export class Signer {
     private _sign<T extends SignerTx>(toSign: T[]): Promise<SignedTx<T>[]> {
         const validation = this._validate(toSign);
 
+        if (this.currentProvider?.isSignAndBroadcastByProvider === true) {
+            const error = this._handleError(ERRORS.PROVIDER_SIGN_NOT_SUPPORTED, [{
+                error: 'PROVIDER_SIGN_NOT_SUPPORTED',
+                node: this._options.NODE_URL,
+            }]);
+
+            throw error;
+        }
+
         if (validation.isValid) {
             return this._connectPromise.then(
                 (provider) => provider.sign(toSign as any)
