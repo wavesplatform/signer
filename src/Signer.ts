@@ -620,11 +620,14 @@ export class Signer {
             } as any),
             sign: () => this._sign<T>(txs as any),
             broadcast: function(options?: BroadcastOptions) {
-                return (
-                    this.sign()
+                if (_this.currentProvider?.isSignAndBroadcastByProvider === true) {
+                    return _this.currentProvider
+                        .sign(txs);
+                } else {
+                    return this.sign()
                         // @ts-ignore
-                        .then((txs) => _this.broadcast(txs, options)) as any
-                );
+                        .then((txs) => _this.broadcast(txs, options)) as any;
+                }
             },
         };
     }
@@ -677,6 +680,15 @@ export class Signer {
     @catchProviderError
     private _sign<T extends SignerTx>(toSign: T[]): Promise<SignedTx<T>[]> {
         const validation = this._validate(toSign);
+
+        if (this.currentProvider?.isSignAndBroadcastByProvider === true) {
+            const error = this._handleError(ERRORS.PROVIDER_SIGN_NOT_SUPPORTED, [{
+                error: 'PROVIDER_SIGN_NOT_SUPPORTED',
+                node: this._options.NODE_URL,
+            }]);
+
+            throw error;
+        }
 
         if (validation.isValid) {
             return this._connectPromise.then(

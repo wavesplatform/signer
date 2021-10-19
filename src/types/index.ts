@@ -43,6 +43,8 @@ export interface TypedData {
 export interface Provider {
     user: UserData | null;
 
+    isSignAndBroadcastByProvider?: boolean;
+
     on<EVENT extends keyof AuthEvents>(
         event: EVENT,
         handler: Handler<AuthEvents[EVENT]>,
