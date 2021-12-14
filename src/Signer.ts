@@ -299,6 +299,8 @@ export class Signer {
      */
     @ensureProvider
     public async login(): Promise<UserData> {
+        await this._connectPromise;
+
         try {
             this._userData = await this.currentProvider!.login();
 
@@ -323,6 +325,8 @@ export class Signer {
      */
     @ensureProvider
     public async logout(): Promise<void> {
+        await this._connectPromise;
+
         try {
             await this.currentProvider!.logout();
 
@@ -340,6 +344,7 @@ export class Signer {
      * Подписываем сообщение пользователя (провайдер может устанавливать префикс)
      * @param message
      */
+    @ensureProvider
     public signMessage(message: string | number): Promise<string> {
         return this._connectPromise.then((provider) =>
             provider.signMessage(message)
@@ -350,6 +355,7 @@ export class Signer {
      * Подписываем типизированные данные
      * @param data
      */
+    @ensureProvider
     public signTypedData(data: Array<TypedData>): Promise<string> {
         return this._connectPromise.then((provider) =>
             provider.signTypedData(data)
