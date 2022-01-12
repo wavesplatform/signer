@@ -15,7 +15,7 @@ import { TRANSACTION_TYPE } from '@waves/waves-transactions/dist/transactions';
 export class TestProvider implements Provider {
     private options: ConnectOptions = {
         NETWORK_BYTE: NETWORK_BYTE,
-        NODE_URL: 'https://nodes.wavesplatform.com',
+        NODE_URL: 'https://nodes.wavesnodes.com',
     };
     private readonly seed: string;
     public readonly user: UserData;
