@@ -2,7 +2,7 @@ import fetch from 'node-fetch';
 import { waitTime } from './utils';
 
 export const NETWORK_BYTE = 87;
-export const NODE_URL = 'https://nodes.wavesplatform.com';
+export const NODE_URL = 'https://nodes.wavesnodes.com';
 export const MOCK_URL = 'https://mock.com';
 export const ACCOUNTS = {
     SIMPLE: {

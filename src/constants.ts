@@ -1,7 +1,7 @@
 import { BroadcastOptions, SignerOptions } from '.';
 
 export const DEFAULT_OPTIONS: SignerOptions = {
-    NODE_URL: 'https://nodes.wavesplatform.com',
+    NODE_URL: 'https://nodes.wavesnodes.com',
     LOG_LEVEL: 'production',
 };
 
