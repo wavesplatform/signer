@@ -1,44 +1,44 @@
 import { DEFAULT_OPTIONS } from './constants';
 import {
-    TypedData,
-    UserData,
-    Provider,
-    Balance,
-    IssueArgs,
-    TransferArgs,
-    ReissueArgs,
-    BurnArgs,
-    LeaseArgs,
-    CancelLeaseArgs,
     AliasArgs,
-    MassTransferArgs,
+    AuthEvents,
+    Balance,
+    BroadcastedTx,
+    BroadcastOptions,
+    BurnArgs,
+    CancelLeaseArgs,
     DataArgs,
-    SetScriptArgs,
-    SponsorshipArgs,
     ExchangeArgs,
-    SetAssetScriptArgs,
+    Handler,
     InvokeArgs,
-    SignerTx,
-    SignerIssueTx,
-    SignerTransferTx,
-    SignerReissueTx,
-    SignerBurnTx,
-    SignerLeaseTx,
-    SignerExchangeTx,
-    SignerCancelLeaseTx,
+    IssueArgs,
+    LeaseArgs,
+    MassTransferArgs,
+    Provider,
+    ReissueArgs,
+    SetAssetScriptArgs,
+    SetScriptArgs,
+    SignedTx,
     SignerAliasTx,
-    SignerMassTransferTx,
+    SignerBurnTx,
+    SignerCancelLeaseTx,
     SignerDataTx,
-    SignerSponsorshipTx,
+    SignerExchangeTx,
     SignerInvokeTx,
+    SignerIssueTx,
+    SignerLeaseTx,
+    SignerMassTransferTx,
+    SignerOptions,
+    SignerReissueTx,
     SignerSetAssetScriptTx,
     SignerSetScriptTx,
-    BroadcastOptions,
-    SignerOptions,
-    SignedTx,
-    BroadcastedTx,
-    AuthEvents,
-    Handler,
+    SignerSponsorshipTx,
+    SignerTransferTx,
+    SignerTx,
+    SponsorshipArgs,
+    TransferArgs,
+    TypedData,
+    UserData,
 } from './types';
 import { IConsole, makeConsole, makeOptions } from '@waves/client-logs';
 import { fetchBalanceDetails } from '@waves/node-api-js/cjs/api-node/addresses';
@@ -48,18 +48,18 @@ import broadcast from '@waves/node-api-js/cjs/tools/transactions/broadcast';
 import getNetworkByte from '@waves/node-api-js/cjs/tools/blocks/getNetworkByte';
 import { ChainApi1stCall } from './types/api';
 import {
-    TRANSACTION_TYPE,
     Transaction,
+    TRANSACTION_TYPE,
     TransactionType,
 } from '@waves/ts-types';
 import {
     argsValidators,
-    validateSignerOptions,
     validateProviderInterface,
+    validateSignerOptions,
 } from './validation';
 import { ERRORS } from './SignerError';
 import { ErrorHandler, errorHandlerFactory } from './helpers';
-import { ensureProvider, checkAuth, catchProviderError } from './decorators';
+import { catchProviderError, checkAuth, ensureProvider } from './decorators';
 
 export * from './types';
 
@@ -219,7 +219,7 @@ export class Signer {
                     NODE_URL: this._options.NODE_URL,
                 })
                 .then(() => {
-                    this._logger.info('Provider has conneced to node.');
+                    this._logger.info('Provider has connected to node.');
 
                     return provider;
                 })
@@ -292,32 +292,32 @@ export class Signer {
 
     /**
      * Получаем информацию о пользователе
-     *
+     * В данном методе НЕЛЬЗЯ использовать асинхронность.
+     * Метод login провайдера должен вызываться синхронно в контексте вызова метода!
      * ```ts
      * await waves.login(); // Авторизуемся. Возвращает адрес и публичный ключ
      * ```
      */
     @ensureProvider
-    public async login(): Promise<UserData> {
-        await this._connectPromise;
+    public login(): Promise<UserData> {
+        return this.currentProvider!.login()
+            .then((data) => {
+                this._logger.info('Logged in.');
+                this._userData = data;
 
-        try {
-            this._userData = await this.currentProvider!.login();
+                return data;
+            })
+            .catch((err) => {
+                if (err === 'Error: User rejection!') {
+                    throw err;
+                }
 
-            this._logger.info('Logged in.');
+                const error = this._handleError(ERRORS.PROVIDER_INTERNAL, [
+                    err.message,
+                ]);
 
-            return this._userData;
-        } catch (err) {
-            if (err === 'Error: User rejection!') {
-                throw err;
-            }
-
-            const error = this._handleError(ERRORS.PROVIDER_INTERNAL, [
-                err.message,
-            ]);
-
-            throw error;
-        }
+                throw error;
+            });
     }
 
     /**
@@ -626,13 +626,16 @@ export class Signer {
             } as any),
             sign: () => this._sign<T>(txs as any),
             broadcast: function(options?: BroadcastOptions) {
-                if (_this.currentProvider?.isSignAndBroadcastByProvider === true) {
-                    return _this.currentProvider
-                        .sign(txs);
+                if (
+                    _this.currentProvider?.isSignAndBroadcastByProvider === true
+                ) {
+                    return _this.currentProvider.sign(txs);
                 } else {
-                    return this.sign()
-                        // @ts-ignore
-                        .then((txs) => _this.broadcast(txs, options)) as any;
+                    return (
+                        this.sign()
+                            // @ts-ignore
+                            .then((txs) => _this.broadcast(txs, options)) as any
+                    );
                 }
             },
         };
@@ -688,10 +691,15 @@ export class Signer {
         const validation = this._validate(toSign);
 
         if (this.currentProvider?.isSignAndBroadcastByProvider === true) {
-            const error = this._handleError(ERRORS.PROVIDER_SIGN_NOT_SUPPORTED, [{
-                error: 'PROVIDER_SIGN_NOT_SUPPORTED',
-                node: this._options.NODE_URL,
-            }]);
+            const error = this._handleError(
+                ERRORS.PROVIDER_SIGN_NOT_SUPPORTED,
+                [
+                    {
+                        error: 'PROVIDER_SIGN_NOT_SUPPORTED',
+                        node: this._options.NODE_URL,
+                    },
+                ]
+            );
 
             throw error;
         }
