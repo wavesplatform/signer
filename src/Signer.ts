@@ -276,7 +276,7 @@ export class Signer {
                         item.issueTransaction.sender ===
                         this._userData!.address,
                     tokens:
-                        item.balance *
+                        (item.balance as number) *
                         Math.pow(10, item.issueTransaction.decimals),
                     isSmart: !!item.issueTransaction.script,
                     sponsorship:
