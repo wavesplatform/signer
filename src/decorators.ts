@@ -43,10 +43,6 @@ export const catchProviderError = (
 
     descriptor.value = function(this: TSigner, ...args: Array<any>): any {
         return origin.apply(this, args).catch((e: any) => {
-            if (e === 'Error: User rejection!') {
-                return Promise.reject(e);
-            }
-
             if (e instanceof SignerError) {
                 return Promise.reject(e);
             }

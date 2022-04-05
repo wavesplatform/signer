@@ -308,10 +308,6 @@ export class Signer {
                 return data;
             })
             .catch((err) => {
-                if (err === 'Error: User rejection!') {
-                    throw err;
-                }
-
                 const error = this._handleError(ERRORS.PROVIDER_INTERNAL, [
                     err.message,
                 ]);
