@@ -156,7 +156,7 @@ export class SignerEnsureProviderError extends SignerError {
 export class SignerProviderInternalError extends SignerError {
     constructor(message: string) {
         super({
-            code: ERRORS.ENSURE_PROVIDER,
+            code: ERRORS.PROVIDER_INTERNAL,
             title: 'Provider internal error',
             type: 'provider',
             details: `Provider internal error: ${message}. This is not error of signer.`,

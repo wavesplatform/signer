@@ -48,7 +48,8 @@ export const catchProviderError = (
             }
 
             const handler = getErrorHandler(this);
-            const error = handler(ERRORS.PROVIDER_INTERNAL, [e.message]);
+            const message = e === 'Error: User rejection!' ? e : e.message;
+            const error = handler(ERRORS.PROVIDER_INTERNAL, [message]);
 
             this._console.error(error);
 
