@@ -1247,7 +1247,7 @@ interface Provider {
 }
 ```
 
-## Error Сodes
+## Error Codes
 
 | Error's class                  | Code | Type           | Example |
 |:------------------------------|:-----|:---------------|:--------|
