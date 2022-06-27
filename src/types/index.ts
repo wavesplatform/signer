@@ -118,7 +118,9 @@ export interface ConnectOptions {
     NETWORK_BYTE: number;
 }
 
-type CommonArgs = Partial<Pick<BaseTransaction, 'fee' | 'senderPublicKey'>> & {
+type CommonArgs = Partial<
+    Pick<BaseTransaction, 'fee' | 'senderPublicKey' | 'timestamp'>
+> & {
     proofs?: Proofs;
 } & { version?: number };
 
