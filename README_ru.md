@@ -212,12 +212,7 @@ Signer поддерживает все браузеры, кроме Brave.
      // Specify URL of the node on Testnet
      NODE_URL: 'https://nodes-testnet.wavesnodes.com'
    });
-   signer.setProvider(new ProviderMetamask({
-     wavesConfig: {
-       nodeUrl: 'https://nodes-testnet.wavesnodes.com',
-       chainId: 'T'.charCodeAt(0)
-     }
-   }));
+   signer.setProvider(new ProviderMetamask());
    ```
 
 * Для работы с Testnet и ProviderSeed:

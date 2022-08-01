@@ -212,12 +212,7 @@ Add library initialization to your app.
      // Specify URL of the node on Testnet
      NODE_URL: 'https://nodes-testnet.wavesnodes.com'
    });
-   signer.setProvider(new ProviderMetamask({
-     wavesConfig: {
-       nodeUrl: 'https://nodes-testnet.wavesnodes.com',
-       chainId: 'T'.charCodeAt(0)
-     }
-   }));
+   signer.setProvider(new ProviderMetamask());
    ```
 
 * For Testnet & ProviderSeed:
