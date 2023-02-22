@@ -43,6 +43,7 @@ import {
 import { IConsole, makeConsole, makeOptions } from '@waves/client-logs';
 import { fetchBalanceDetails } from '@waves/node-api-js/cjs/api-node/addresses';
 import { fetchAssetsBalance } from '@waves/node-api-js/cjs/api-node/assets';
+import { fetchAssetsAddressLimit } from '@waves/node-api-js/cjs/api-node/assets';
 import wait from '@waves/node-api-js/cjs/tools/transactions/wait';
 import broadcast from '@waves/node-api-js/cjs/tools/transactions/broadcast';
 import getNetworkByte from '@waves/node-api-js/cjs/tools/blocks/getNetworkByte';
@@ -286,6 +287,53 @@ export class Signer {
                             ? item.minSponsoredAssetFee
                             : null,
                 }))
+            ),
+        ]).then(([waves, assets]) => [waves, ...assets]);
+    }
+
+     /**
+     * Get NFT Balance
+     */
+    @ensureProvider
+    @checkAuth
+    public getNftBalance(): Promise<Array<Balance>> {
+        return Promise.all([
+            fetchBalanceDetails(
+                this._options.NODE_URL,
+                this._userData!.address,
+            ).then((data) => ({
+                assetId: 'WAVES',
+                assetName: 'Waves',
+                decimals: 8,
+                amount: String(data.available),
+                isMyAsset: false,
+                tokens: Number(data.available) * Math.pow(10, 8),
+                sponsorship: null,
+                isSmart: false,
+            })),
+            fetchAssetsAddressLimit(
+                this._options.NODE_URL,
+                this._userData!.address,
+            ).then((data) =>
+                data.balances.map((item) => ({
+                    assetId: item.assetId,
+                    assetName: item.issueTransaction.name,
+                    decimals: item.issueTransaction.decimals,
+                    amount: String(item.balance),
+                    isMyAsset:
+                        item.issueTransaction.sender ===
+                        this._userData!.address,
+                    tokens:
+                        item.balance *
+                        Math.pow(10, item.issueTransaction.decimals),
+                    isSmart: !!item.issueTransaction.script,
+                    sponsorship:
+                        item.sponsorBalance != null &&
+                        item.sponsorBalance > Math.pow(10, 8) &&
+                        (item.minSponsoredAssetFee || 0) < item.balance
+                            ? item.minSponsoredAssetFee
+                            : null,
+                })),
             ),
         ]).then(([waves, assets]) => [waves, ...assets]);
     }
