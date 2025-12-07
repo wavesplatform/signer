@@ -14,10 +14,12 @@ import {
     IssueArgs,
     LeaseArgs,
     MassTransferArgs,
+    TOrderArgs,
     Provider,
     ReissueArgs,
     SetAssetScriptArgs,
     SetScriptArgs,
+    TSignedOrder,
     SignedTx,
     SignerAliasTx,
     SignerBurnTx,
@@ -348,6 +350,17 @@ export class Signer {
     public signMessage(message: string | number): Promise<string> {
         return this._connectPromise.then((provider) =>
             provider.signMessage(message)
+        );
+    }
+
+    /**
+     * Подписываем order пользователя
+     * @param order
+     */
+    @ensureProvider
+    public signOrder(order: TOrderArgs): Promise<TSignedOrder> {
+        return this._connectPromise.then((provider) =>
+            provider.signOrder(order)
         );
     }
 

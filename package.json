@@ -67,7 +67,7 @@
     "@typescript-eslint/parser": "^2.22.0",
     "@waves/js-test-env": "^0.7.4",
     "@waves/node-state": "0.0.5",
-    "@waves/waves-transactions": "^4.1.3",
+    "@waves/waves-transactions": "^4.3.11",
     "cross-env": "^7.0.0",
     "dotenv": "^8.2.0",
     "eslint": "^6.8.0",
