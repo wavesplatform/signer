@@ -1,11 +1,13 @@
 import { EventEmitter } from 'typed-ts-events';
-import { libs, signTx } from '@waves/waves-transactions';
+import { libs, signTx, order } from '@waves/waves-transactions';
 import { NETWORK_BYTE } from './test-env';
 import {
     AuthEvents,
     ConnectOptions,
     Handler,
+    TOrderArgs,
     Provider,
+    TSignedOrder,
     SignerTx,
     TypedData,
     UserData,
@@ -20,7 +22,9 @@ export class TestProvider implements Provider {
     private readonly seed: string;
     public readonly user: UserData;
     public debugEmitter: EventEmitter<TEvents> = new EventEmitter<TEvents>();
-    private emitter: EventEmitter<AuthEvents> = new EventEmitter<AuthEvents>();
+    private readonly emitter: EventEmitter<AuthEvents> = new EventEmitter<
+        AuthEvents
+    >();
 
     constructor(seed?: string) {
         this.seed = seed || libs.crypto.randomSeed();
@@ -33,31 +37,35 @@ export class TestProvider implements Provider {
 
     public on<EVENT extends keyof AuthEvents>(
         event: EVENT,
-        handler: Handler<AuthEvents[EVENT]>,
+        handler: Handler<AuthEvents[EVENT]>
     ): Provider {
         this.emitter.on(event, handler);
+
         return this;
     }
 
     public once<EVENT extends keyof AuthEvents>(
         event: EVENT,
-        handler: Handler<AuthEvents[EVENT]>,
+        handler: Handler<AuthEvents[EVENT]>
     ): Provider {
         this.emitter.once(event, handler);
+
         return this;
     }
 
     public off<EVENT extends keyof AuthEvents>(
         event: EVENT,
-        handler: Handler<AuthEvents[EVENT]>,
+        handler: Handler<AuthEvents[EVENT]>
     ): Provider {
         this.emitter.off(event, handler);
+
         return this;
     }
 
     public connect(options: ConnectOptions): Promise<void> {
         this.options = options;
         this.debugEmitter.trigger('connect', [options]);
+
         return Promise.resolve();
     }
 
@@ -66,12 +74,15 @@ export class TestProvider implements Provider {
             address: libs.crypto.address(this.seed, this.options.NETWORK_BYTE),
             publicKey: libs.crypto.publicKey(this.seed),
         });
+
         this.debugEmitter.trigger('login', [] as any);
+
         return promise;
     }
 
     public logout(): Promise<void> {
         this.debugEmitter.trigger('logout', [] as any);
+
         return Promise.resolve();
     }
 
@@ -79,26 +90,38 @@ export class TestProvider implements Provider {
         this.debugEmitter.trigger('sign', [list]);
         const fixAlias = (tx: any) =>
             tx.type === TRANSACTION_TYPE.ALIAS
-                ? {...tx, alias: tx.alias.replace(/alias:.:/, '') }
-                : tx
+                ? { ...tx, alias: tx.alias.replace(/alias:.:/, '') }
+                : tx;
+
         return Promise.resolve(
             list.map((item) =>
                 signTx(
-                    fixAlias({ chainId: this.options.NETWORK_BYTE, ...item }) as any,
-                    this.seed,
-                ),
-            ),
+                    fixAlias({
+                        chainId: this.options.NETWORK_BYTE,
+                        ...item,
+                    }) as any,
+                    this.seed
+                )
+            )
         ) as any;
     }
 
     public signMessage(data: string | number): Promise<string> {
         this.debugEmitter.trigger('signMessage', [data]);
+
         // TODO
         return Promise.resolve('TODO');
     }
 
+    public signOrder(data: TOrderArgs): Promise<TSignedOrder> {
+        this.debugEmitter.trigger('signOrder', [data]);
+
+        return Promise.resolve(order(data));
+    }
+
     public signTypedData(data: Array<TypedData>): Promise<string> {
         this.debugEmitter.trigger('signTypedData', [data]);
+
         // TODO
         return Promise.resolve('TODO');
     }
