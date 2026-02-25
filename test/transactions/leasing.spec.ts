@@ -5,7 +5,7 @@ import { libs } from '@waves/waves-transactions';
 
 
 const MASTER_ADDRESS = libs.crypto.address(ACCOUNTS.NODE.seed, NETWORK_BYTE);
-let waves: Signer = new Signer();
+let waves: Signer;
 let provider: TestProvider = new TestProvider(ACCOUNTS.SIMPLE.seed);
 
 

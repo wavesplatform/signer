@@ -3,9 +3,8 @@ import Signer from '../../src/Signer';
 import { TestProvider } from '../TestProvider';
 import { libs } from '@waves/waves-transactions';
 
-
 const MASTER_ADDRESS = libs.crypto.address(ACCOUNTS.SIMPLE.seed, NETWORK_BYTE);
-let waves: Signer = new Signer();
+let waves: Signer;
 let provider: TestProvider = new TestProvider(ACCOUNTS.SIMPLE.seed);
 
 beforeEach(() => {
@@ -24,11 +23,13 @@ it('Transfer Signer', async () => {
 });
 
 it('Transfer custom asset', async () => {
-    const [{ id }] = await waves.issue({
-        name: 'Bitcoin',
-        decimals: 8,
-        quantity: 10000,
-    }).broadcast();
+    const [{ id }] = await waves
+        .issue({
+            name: 'Bitcoin',
+            decimals: 8,
+            quantity: 10000,
+        })
+        .broadcast();
 
     await waves
         .transfer({
@@ -40,11 +41,13 @@ it('Transfer custom asset', async () => {
 });
 
 it('Transfer two transactions', async () => {
-    const [{ id }] = await waves.issue({
-        name: 'Bitcoin',
-        decimals: 8,
-        quantity: 10000,
-    }).broadcast();
+    const [{ id }] = await waves
+        .issue({
+            name: 'Bitcoin',
+            decimals: 8,
+            quantity: 10000,
+        })
+        .broadcast();
 
     await waves
         .transfer({
@@ -61,11 +64,13 @@ it('Transfer two transactions', async () => {
 });
 
 it('Transfer smart asset', async () => {
-    const [{ id }] = await waves.issue({
-        name: 'Bitcoin',
-        decimals: 8,
-        quantity: 10000,
-    }).broadcast();
+    const [{ id }] = await waves
+        .issue({
+            name: 'Bitcoin',
+            decimals: 8,
+            quantity: 10000,
+        })
+        .broadcast();
 
     const [tx] = await waves
         .transfer({
@@ -82,26 +87,26 @@ it('Transfer smart asset', async () => {
 it('Mass transfer Signer', async () => {
     await waves
         .massTransfer({
-            transfers: [
-                { recipient: MASTER_ADDRESS, amount: Math.pow(10, 8) }
-            ],
+            transfers: [{ recipient: MASTER_ADDRESS, amount: Math.pow(10, 8) }],
+            attachment: null,
         })
         .broadcast();
 });
 
 it('Mass transfer asset', async () => {
-    const [{ id }] = await waves.issue({
-        name: 'Bitcoin',
-        decimals: 8,
-        quantity: 10000,
-    }).broadcast();
+    const [{ id }] = await waves
+        .issue({
+            name: 'Bitcoin',
+            decimals: 8,
+            quantity: 10000,
+        })
+        .broadcast();
 
     await waves
         .massTransfer({
             assetId: id,
-            transfers: [
-                { recipient: MASTER_ADDRESS, amount: Math.pow(10, 8) },
-            ],
+            transfers: [{ recipient: MASTER_ADDRESS, amount: Math.pow(10, 8) }],
+            attachment: null,
         })
         .broadcast();
 });

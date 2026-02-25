@@ -40,7 +40,7 @@ it('Cancel Sponsorship', async () => {
     await waves
         .sponsorship({
             assetId: asset.id,
-            minSponsoredAssetFee: 0
+            minSponsoredAssetFee: null
         })
         .broadcast();
 });

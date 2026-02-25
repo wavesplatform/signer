@@ -190,7 +190,8 @@ export const sponsorshipArgsScheme = {
     ...getCommonValidators(TRANSACTION_TYPE.SPONSORSHIP),
     // TODO Add not WAVES ASSET ID
     assetId: isString,
-    minSponsoredAssetFee: isNumberLike,
+    minSponsoredAssetFee: (value: unknown) =>
+        value === null || isNumberLike(value),
 };
 export const sponsorshipArgsValidator = validator(
     sponsorshipArgsScheme as any,
