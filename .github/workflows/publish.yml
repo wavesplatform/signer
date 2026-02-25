@@ -10,20 +10,21 @@ permissions:
     id-token: write
 jobs:
     publish-snapshots:
+        name: Publish snapshot packages
+        runs-on: ubuntu-latest
         env:
             NODE_OPTIONS: --openssl-legacy-provider
+            TAG: snapshot
         environment:
             name: NPMJS
             url: ${{ steps.publish.outputs.url }}
-        name: Publish snapshot packages
-        runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
             - uses: actions/setup-node@v4
               with:
                   registry-url: 'https://registry.npmjs.org'
                   node-version: '>=24.7.0'
-            - run: npm i
+            - run: npm ci
             - if: ${{ github.event_name == 'push' }}
               run: |
                   PACKAGE_NAME=$(jq --raw-output .name package.json)
@@ -41,5 +42,6 @@ jobs:
             - id: publish
               run: |
                   npm run build
+                  echo "Publishing version=$(jq -r .version package.json) tag=$TAG"
                   npm publish --provenance --access public --tag $TAG
                   echo "url=https://www.npmjs.com/package/@waves/signer/v/$(jq --raw-output .version package.json)" >> "$GITHUB_OUTPUT"

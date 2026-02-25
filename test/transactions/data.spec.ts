@@ -4,7 +4,7 @@ import { TestProvider } from '../TestProvider';
 import { MASTER_ACCOUNT_SEED } from '@waves/node-state/dist/constants';
 
 
-let waves: Signer = new Signer();
+let waves: Signer;
 let provider: TestProvider = new TestProvider(MASTER_ACCOUNT_SEED);
 
 

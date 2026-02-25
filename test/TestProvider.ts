@@ -12,7 +12,7 @@ import {
     TypedData,
     UserData,
 } from '../src';
-import { TRANSACTION_TYPE } from '@waves/waves-transactions/dist/transactions';
+import { TRANSACTION_TYPE } from '@waves/ts-types';
 
 export class TestProvider implements Provider {
     private options: ConnectOptions = {
@@ -92,14 +92,20 @@ export class TestProvider implements Provider {
             tx.type === TRANSACTION_TYPE.ALIAS
                 ? { ...tx, alias: tx.alias.replace(/alias:.:/, '') }
                 : tx;
+        const fixIssueDescription = (tx: any) =>
+            tx.type === TRANSACTION_TYPE.ISSUE && tx.description == null
+                ? { ...tx, description: '' }
+                : tx;
 
         return Promise.resolve(
             list.map((item) =>
                 signTx(
-                    fixAlias({
-                        chainId: this.options.NETWORK_BYTE,
-                        ...item,
-                    }) as any,
+                    fixIssueDescription(
+                        fixAlias({
+                            chainId: this.options.NETWORK_BYTE,
+                            ...item,
+                        })
+                    ) as any,
                     this.seed
                 )
             )
