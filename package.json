@@ -27,7 +27,7 @@
     "format": "npm run prettier -- --write",
     "check-format": "npm run prettier -- --list-different",
     "check-types": "tsc --noEmit",
-    "test": "npx jest"
+    "test": "npm run generateInterface && npx jest"
   },
   "jest": {
     "collectCoverage": true,

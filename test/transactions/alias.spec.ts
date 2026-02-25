@@ -6,7 +6,6 @@ import { MASTER_ACCOUNT_SEED } from '@waves/node-state/dist/constants';
 let waves: Signer;
 let provider: TestProvider = new TestProvider(MASTER_ACCOUNT_SEED);
 
-
 beforeEach(() => {
     waves = new Signer({ NODE_URL: MOCK_URL });
     provider = new TestProvider(ACCOUNTS.SIMPLE.seed);
@@ -19,7 +18,6 @@ it('Alias', () =>
             alias: `test@${Date.now()}`,
         })
         .broadcast()
-        .then(([tx]) => {
+        .then(([tx]: any[]) => {
             expect(tx.fee).toBe(0.001 * Math.pow(10, 8));
-        }),
-);
+        }));
