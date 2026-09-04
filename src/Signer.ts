@@ -1,3 +1,4 @@
+import './fetch';
 import { DEFAULT_OPTIONS } from './constants';
 import {
     AliasArgs,

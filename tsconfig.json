@@ -10,10 +10,23 @@
     "strictNullChecks": true,
     "suppressImplicitAnyIndexErrors": true,
     "noUnusedLocals": true,
+    "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "declaration": false,
     "experimentalDecorators": true,
+    "baseUrl": ".",
+    "paths": {
+      "@waves/ts-types/src": [
+        "node_modules/@waves/ts-types/dist/src/index.d.ts"
+      ],
+      "@waves/ts-types/src/parts": [
+        "node_modules/@waves/ts-types/dist/src/parts.d.ts"
+      ],
+      "@waves/ts-lib-crypto/conversions/base-xx": [
+        "node_modules/@waves/ts-lib-crypto/dist/conversions/base-xx.d.ts"
+      ]
+    },
     "lib": [
       "es5",
       "dom",

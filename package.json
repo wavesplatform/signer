@@ -18,8 +18,8 @@
   "scripts": {
     "watch": "webpack --watch",
     "generateInterface": "npx ts-node generateInterface.ts",
-    "bundle:d": "npm run generateInterface && cross-env NODE_ENV=development webpack",
-    "bundle:p": "npm run generateInterface && cross-env NODE_ENV=production webpack",
+    "bundle:d": "npm run generateInterface && cross-env NODE_OPTIONS=--openssl-legacy-provider NODE_ENV=development webpack",
+    "bundle:p": "npm run generateInterface && cross-env NODE_OPTIONS=--openssl-legacy-provider NODE_ENV=production webpack",
     "build:cjs": "shx rm -rf dist/cjs && tsc -p tsconfig.build.json -m commonjs --outDir dist/cjs",
     "build:es": "shx rm -rf dist/es && tsc -p tsconfig.build.json -m es6 --outDir dist/es",
     "build": "shx rm -rf dist && run-p build:* bundle:*",
@@ -44,6 +44,9 @@
     "transform": {
       "^.+\\.(ts|tsx)$": "ts-jest"
     },
+    "moduleNameMapper": {
+      "^@waves/ts-lib-crypto/conversions/base-xx$": "<rootDir>/node_modules/@waves/ts-lib-crypto/dist/conversions/base-xx.js"
+    },
     "testMatch": [
       "**/test/*spec.+(ts)",
       "**/test/**/*spec.+(ts)"
@@ -52,9 +55,11 @@
   "dependencies": {
     "@types/ramda": "^0.27.32",
     "@waves/client-logs": "^1.0.0",
-    "@waves/node-api-js": "^1.3.0",
-    "@waves/ts-lib-crypto": "^1.4.3",
-    "@waves/ts-types": "^1.0.0",
+    "@waves/node-api-js": "^1.4.0",
+    "@waves/ts-lib-crypto": "^1.5.2",
+    "@waves/ts-types": "^1.3.1",
+    "@waves/waves-transactions": "^5.0.0",
+    "node-fetch": "^2.6.1",
     "ramda": "^0.27.1"
   },
   "devDependencies": {
@@ -64,9 +69,8 @@
     "@types/node-fetch": "^2.5.3",
     "@typescript-eslint/eslint-plugin": "^2.22.0",
     "@typescript-eslint/parser": "^2.22.0",
-    "@waves/js-test-env": "^0.7.4",
+    "@waves/js-test-env": "^1.1.5",
     "@waves/node-state": "0.0.5",
-    "@waves/waves-transactions": "^4.3.11",
     "cross-env": "^7.0.0",
     "dotenv": "^8.2.0",
     "eslint": "^6.8.0",
@@ -80,7 +84,6 @@
     "fs-extra": "^8.1.0",
     "jest": "^24.9.0",
     "jest-extended": "^0.11.2",
-    "node-fetch": "^2.6.1",
     "npm-run-all": "^4.1.5",
     "prettier": "^1.19.1",
     "shx": "^0.3.2",

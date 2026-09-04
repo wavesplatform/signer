@@ -11,7 +11,7 @@ import includes from 'ramda/src/includes';
 import flip from 'ramda/src/flip';
 import always from 'ramda/src/always';
 import tryCatch from 'ramda/src/tryCatch';
-import { base58Decode } from '@waves/ts-lib-crypto';
+import { base58Decode } from '@waves/ts-lib-crypto/conversions/base-xx';
 
 const TX_DEFAULTS = {
     MAX_ATTACHMENT: 140,
