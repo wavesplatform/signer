@@ -28,6 +28,17 @@ const commonConfig = (mode) => merge([{
         ],
     },
     resolve: {
+        alias: {
+            '@waves/ts-lib-crypto/conversions/base-xx$': path.join(
+                PATHS.root,
+                'node_modules',
+                '@waves',
+                'ts-lib-crypto',
+                'dist',
+                'conversions',
+                'base-xx.js'
+            ),
+        },
         extensions: ['.ts', '.tsx', '.js', '.json'],
         modules: ['node_modules'],
     },

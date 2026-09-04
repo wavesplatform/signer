@@ -1,5 +1,10 @@
-import fetch from 'node-fetch';
+import { TextDecoder, TextEncoder } from 'util';
 import { waitTime } from './utils';
+
+import nodeFetch = require('node-fetch');
+
+(global as any).TextDecoder = (global as any).TextDecoder || TextDecoder;
+(global as any).TextEncoder = (global as any).TextEncoder || TextEncoder;
 
 export const NETWORK_BYTE = 87;
 export const NODE_URL = 'https://nodes.wavesnodes.com';
@@ -31,7 +36,7 @@ type Fetch = typeof window.fetch;
 // @ts-ignore
 const f: Fetch = (url: string, options) => {
     if (!url.includes(MOCK_URL)) {
-        return fetch(url, options as any);
+        return nodeFetch(url, options as any);
     }
 
     console.log(`Request ${url}, options: ${JSON.stringify(options, null, 4)}`);
@@ -69,4 +74,3 @@ const f: Fetch = (url: string, options) => {
 };
 
 (global as any).fetch = f;
-
